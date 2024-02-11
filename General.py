@@ -243,7 +243,10 @@ class General:
                 ind = ind + 1
             else:
                 if temp[0] == 'loto':
-                    data[1][ind]['loto'] = [int(k) for k in temp[1].split(',')]
+                    try:
+                        data[1][ind]['loto'] = [int(k) for k in temp[1].split(',')]
+                    except:
+                        data[1][ind]['loto'] = []
                 elif (temp[0] == 'pcip') or (temp[0] == '3dsip'):
                     data[1][ind][temp[0]] = temp[1]
                 else:

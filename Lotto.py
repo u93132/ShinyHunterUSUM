@@ -150,7 +150,7 @@ class Lotto:
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct
         self.General.data[1][i]['loto'] = (
-            [enum for k,enum in enumerate(self.rotostate) if k == 1] )
+            [enum for enum,k in enumerate(self.rotostate) if k == 1] )
 
     def data2GUI(self, i):
         # For each tab, setting data struct to GUI
