@@ -1,3 +1,5 @@
+# Shiny Hunter on Ultra Sun/ Ultra Moon
+
 A python-based Pokemon shiny hunt away from keyboard procedure
 
 Acknowledge:
