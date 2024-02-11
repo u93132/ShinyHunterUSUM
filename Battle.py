@@ -71,13 +71,19 @@ class Battle:
             self.chat = 2700
         elif int(self.auravar.get()) == 1:
             # 8600ms for aura pokemon
-            self.chat = 8600
+            self.chat = 8300
 
     def findtime(self):
         # Return the time between 'appear' and 'Go!'
         # res:  the time between 'appear' and 'Go!'
         # img0: the screenshot when the pokemon appears
-        for i in range(150):
+        if int(self.auravar.get()) == 0:
+            # no aura pokemon
+            n = 150
+        elif int(self.auravar.get()) == 1:
+            # aura pokemon
+            n = 350
+        for i in range(n):
             if int(self.movevar.get()) == 0:
                 # Move around
                 self.ir.press(HIDButtons.B)
