@@ -8,4 +8,4 @@ TPPFLUSH: https://github.com/hlixed/TPPFLUSH
 
 Python above 3.6 is required and PyInstaller to pack the exe file
 
-More instructions see here: https://gbatemp.net/threads/shiny-hunter-usum-afk.648378/#post-10354475
+More instructions see here: https://gbatemp.net/threads/shiny-hunter-usum-afk.648378
