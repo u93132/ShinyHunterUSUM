@@ -6,7 +6,7 @@ from datetime import datetime
 from functions import *
 from boxBase import *
 
-import win32con
+import win32.lib.win32con as win32con
 import win32.win32gui as win32gui
 import win32.win32process as win32process
 import win32.win32api as win32api
