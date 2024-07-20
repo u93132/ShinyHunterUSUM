@@ -159,7 +159,8 @@ class Recv:
                         ('Receive %04d' % self.General.start_count) +
                          ' - N3DS crush?')
                     break
-            if res < self.threshold:
+            if ((int(self.recvvar.get()) == 0 and res < self.threshold) or
+                (int(self.recvvar.get()) == 1 and res < 0.4)):
                 img0.save(self.General.shotpath +
                           '/' + ('%04d' % self.General.start_count) +'.jpg')
                 self.ir.return_control()
