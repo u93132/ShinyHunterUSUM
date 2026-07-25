@@ -251,12 +251,12 @@ class ShinyHunterUSUM(tk.Tk):
     def main_procedure(self):
             # Valid the string in entries
             try:
-                check('192.168.' + self.General.IPDS.Entry.get())
+                check(self.General.IPDS.Entry.get())
             except:
                 self.msgbox.MsgAppend('Error: Invalid 3DS IP')
                 raise Exception('Invalid IP')
             try:
-                check('192.168.' + self.General.IPPC.Entry.get())
+                check(self.General.IPPC.Entry.get())
             except:
                 self.msgbox.MsgAppend('Error: Invalid PC IP')
                 raise Exception('Invalid IP')
@@ -270,10 +270,10 @@ class ShinyHunterUSUM(tk.Tk):
             self.General.ConnectButton.config(state = 'disable')
             self.msgbox.msgbox.config(bg = 'white')
             # Get IP address and port number
-            IPstr = '192.168.' + self.General.IPPC.Entry.get()
+            IPstr = self.General.IPPC.Entry.get()
             self.General.serverIP = IPstr.split(':')[0]
             self.General.serverport = int(IPstr.split(':')[1])
-            IPstr = '192.168.' + self.General.IPDS.Entry.get()
+            IPstr = self.General.IPDS.Entry.get()
             self.General.clientIP = IPstr.split(':')[0]
             self.General.start_count = int(self.General.Counter.Entry.get())
             # TCP/IP connection to NTR

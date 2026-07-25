@@ -67,9 +67,9 @@ class General:
         self.labelIPPC .config(width = 5)
         self.labelIPPC .pack(padx=0, pady=0, side='left', fill='both')
         self.IPPC      = InputBox(self.frameIPPC, 0,
-                                          '192.168.', '', [7, 11, 0])
+                                          '', '', [0, 18, 0])
         self.IPPC      .Label2.pack(padx=0, pady=0, side='left')
-        #self.IPPC      .Entry.insert(0,'137.1:8001')
+        self.IPPC      .Entry.insert(0,'192.168.137.1:8001')
         # Objects for N3DS IP
         self.frameIPDS = tk.Frame(self.frameAA)
         self.frameIPDS .grid(row=1, column=0, padx=3, pady=8)
@@ -77,9 +77,9 @@ class General:
         self.labelIPDS .config(width = 5)
         self.labelIPDS .pack(padx=0, pady=0, side='left', fill='both')
         self.IPDS      = InputBox(self.frameIPDS, 0,
-                                          '192.168.', '', [7, 11, 0])
+                                          '', '', [0, 18, 0])
         self.IPDS      .Label2.pack(padx=0, pady=0, side='left')
-        #self.IPDS      .Entry.insert(0,'137.60')
+        self.IPPC      .Entry.insert(0,'192.168.137.50')
         # Objects for Counter
         self.frameCounter = tk.Frame(self.frame)
         self.frameCounter .grid(row=1, column=0, padx=3, pady=8, sticky='ew')
