@@ -65,7 +65,7 @@ class Battle:
 
         # Hint line for the current Trigger/Type combination
         self.desclist = {
-            (0, 0): 'Legendaries in Ultra wormholes/normal grass encounter.',
+            (0, 0): 'Legendaries in Ultra wormholes/\nnormal grass encounter.',
             (0, 1): 'Stakataka and Blacephalon',
             (1, 0): 'No Pokemons belong here.',
             (1, 1): 'Ultra beasts in Ultra wormholes.',

@@ -91,6 +91,10 @@ class General:
         self.ConnectButton = tk.Button(self.Counter.frame,
                                        image=self.bitmap['connect'])
         self.ConnectButton .pack(padx=0, pady=0, side='right')
+        self.ResetButton   = tk.Button(self.Counter.frame,
+                                       image=self.bitmap['return'],
+                                       command=self.CounterReset)
+        self.ResetButton   .pack(padx=2, pady=0, side='right')
         self.ReturnButton  = tk.Button(self.Counter.frame,
                                        image=self.bitmap['return'])
         #self.ReturnButton .pack(padx=0, pady=0, side='right')
@@ -129,6 +133,14 @@ class General:
     def settingGetInd(self):
         return self.settinglist.index(self.setting.get())
 
+    def CounterReset(self):
+        # Reset the counter to its initial value and save the setting
+        self.start_count = 1
+        self.Counter.Entry.delete(0,'end')
+        self.Counter.Entry.insert(0,'1')
+        self.GUI2data(self.settingGetInd())
+        self.WriteSetting(self.data)
+
     def CounterPlusOne(self):
         # Update the counter and plus one
         self.data = self.LoadSetting()
@@ -150,6 +162,7 @@ class General:
         if i == 0:
             self.ConnectButton.config(relief = 'raised')
             self.ConnectButton.config(state = 'disabled')
+            self.ResetButton.config(state = 'normal')
             self.IPDS.Entry.config(state = 'normal')
             self.IPPC.Entry.config(state = 'normal')
             self.Counter.Entry.config(state = 'normal')
@@ -174,6 +187,7 @@ class General:
         elif i == 1:
             self.ConnectButton.config(relief = 'sunken')
             self.ConnectButton.config(state = 'disabled')
+            self.ResetButton.config(state = 'disabled')
             self.ReturnButton.config(state = 'disabled')
             self.IPDS.Entry.config(state = 'disabled')
             self.IPPC.Entry.config(state = 'disabled')
