@@ -23,10 +23,10 @@ class Battle:
         self.ir          = None    # pre assign the input redirection object
         self.threshold   = 0.10    # for image identification
         # Battle parameters
-        self.picpath = './image0/' + self.tabname + '/'
-        self.ap   = img2BW(Image.open(resource_path(self.picpath+'ap.bmp')))
-        self.go   = img2BW(Image.open(resource_path(self.picpath+'go.bmp')))
-        self.mys  = img2BW(Image.open(resource_path(self.picpath+'Mys.bmp')))
+        self.picpath = resource_path(f'image0/{self.tabname}')
+        self.ap   = img2BW(Image.open(self.picpath/'ap.bmp'))
+        self.go   = img2BW(Image.open(self.picpath/'go.bmp'))
+        self.mys  = img2BW(Image.open(self.picpath/'Mys.bmp'))
         self.chat = 2700           # 2700ms for normal pokemon
 
         #########################################################################
@@ -183,8 +183,8 @@ class Battle:
                         ' - N3DS crush?' )
                     break
             if t_use > self.chat:
-                img0.save(f'{self.General.shotpath}'
-                          f'/{self.General.start_count:04d}.jpg')
+                img0.save(self.General.shotpath /
+                          f'{self.General.start_count:04d}.jpg')
                 self.ir.return_control()
                 self.General.ConnectState(0)
                 self.General.ConnectState(-1)

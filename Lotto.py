@@ -22,17 +22,14 @@ class Lotto:
         self.ir          = None    # pre assign the input redirection object
         self.threshold   = 0.05    # for image identification
         # Lotto parameters
-        self.picpath = './image0/' + self.tabname + '/'
-        self.img0 = img2BW(Image.open(resource_path(self.picpath+'temp.bmp')))
-        self.mys  = img2BW(Image.open(resource_path(self.picpath+'Mys.bmp')))
+        self.picpath = resource_path(f'image0/{self.tabname}')
+        self.img0 = img2BW(Image.open(self.picpath/'temp.bmp'))
+        self.mys  = img2BW(Image.open(self.picpath/'Mys.bmp'))
         self.namelist = ['Bargain', 'Boost', 'Catch', 'Encounter', 'Exp Points',
                          'Friendship', 'HP Restore', 'Hatch', 'Prize Money',
                          'PP Restore', 'Stealth']
-        self.imglist  = [None for i in self.namelist]
-        for i in range(len(self.namelist)):
-            self.imglist[i] = img2BW( Image.open(
-                              resource_path(self.picpath +
-                                            self.namelist[i] +'.bmp') ) )
+        self.imglist  = [img2BW(Image.open(self.picpath/f'{name}.bmp'))
+                         for name in self.namelist]
 
         ########################################################################
         ################################ Objects ###############################

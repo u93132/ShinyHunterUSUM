@@ -1,6 +1,8 @@
+import tkinter as tk
 import tkinter.font as tkfont
-import os, re, sys
-from PIL import ImageStat
+import re, sys
+from pathlib import Path
+from PIL import Image, ImageStat, ImageTk
 
 # Get rid of system language issues
 def FindFont():
@@ -67,11 +69,19 @@ def matchtemplate(img_r, img_t, h_t, w_diff):
 
 # For check whether script is in IDLE or Pyinstaller
 def resource_path(relative_path):
-    # Get absolute path to resource, works for dev and for PyInstaller
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
+    # PyInstaller unpacks bundled data files under sys._MEIPASS
+    return Path(getattr(sys, '_MEIPASS', '.')) / relative_path
 
-    return os.path.join(base_path, relative_path)
+# Load every image in a folder into tk-compatible objects
+# gif -> tk.PhotoImage (animation-capable)
+# ico -> skipped (window icon, loaded separately)
+def load_bitmaps(folder):
+    bitmap = {}
+    for p in resource_path(folder).iterdir():
+        if not p.is_file() or p.suffix.lower() == '.ico':
+            continue
+        if p.suffix.lower() == '.gif':
+            bitmap[p.stem] = tk.PhotoImage(file=str(p))
+        else:
+            bitmap[p.stem] = ImageTk.PhotoImage(Image.open(p))
+    return bitmap

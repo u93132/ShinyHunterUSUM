@@ -1,15 +1,10 @@
 import tkinter as tk
 from tkinter import ttk
-import time, tempfile, os, socket
+import time, tempfile, socket, sys
 from PIL import Image
 from datetime import datetime
 from functions import *
 from boxBase import *
-
-import win32.lib.win32con as win32con
-import win32.win32gui as win32gui
-import win32.win32process as win32process
-import win32.win32api as win32api
 
 # Define the application class
 class General:
@@ -31,28 +26,14 @@ class General:
         self.udp_socket  = None    # pre assign the NTR udp object
         self.start_count = 1
         # Load images
-        self.picpath = './image0/' + self.tabname + '/'
-        self.bitmap = {}
-        for i in os.listdir(resource_path(self.picpath)):
-            temp = i.split('.')
-            if len(temp) > 1:
-                if not temp[1] == 'ico':
-                    if temp[1] == 'gif':
-                        self.bitmap[temp[0]] = tk.PhotoImage(
-                                file=(resource_path(self.picpath+ i)) )
-                    else:
-                        self.bitmap[temp[0]] = ImageTk.PhotoImage(
-                            Image.open(resource_path(self.picpath+ i)) )
-        # Get EXE folder
-        hwnd = win32gui.FindWindowEx(0,None,None,'Shiny Hunter USUM')
-        _, pid = win32process.GetWindowThreadProcessId(hwnd)
-        hndl = win32api.OpenProcess(win32con.PROCESS_QUERY_INFORMATION |
-                                    win32con.PROCESS_VM_READ, 0, pid)
-        self.path = win32process.GetModuleFileNameEx(hndl, 0)
-        self.shotpath, self.filename = os.path.split(self.path)
-        # Setup the screenshot folder
-        if self.filename == 'pythonw.exe':
-            self.shotpath = './pic'
+        self.bitmap = load_bitmaps(f'image0/{self.tabname}')
+        # Setup the screenshot folder:
+        # next to the exe when frozen, into ./pic in dev
+        if getattr(sys, 'frozen', False):
+            self.shotpath = Path(sys.executable).parent
+        else:
+            self.shotpath = Path('pic')
+            self.shotpath.mkdir(exist_ok=True)
 
         ########################################################################
         ################################ Objects ###############################
@@ -116,13 +97,13 @@ class General:
             self.TabButton[i].grid(row=i, column=0, padx=0, pady=0, sticky='w')
             self.TabButton[i].config(text=self.framename[i+1])
         # Settings
-        self.settingpath = tempfile.gettempdir() + '/USUMShinyHunter.txt'
+        self.settingpath = Path(tempfile.gettempdir()) / 'USUMShinyHunter.txt'
         self.settinglist = ['Set #'+str(i+1) for i in range(12)]
         self.setting     = ttk.Combobox(self.frame, state = 'readonly')
         self.setting     .grid(row=1, column=1, padx=5, pady=8, sticky='e')
         self.setting     .config(width = 6, values = self.settinglist)
 
-        if not os.path.isfile(self.settingpath):
+        if not self.settingpath.is_file():
             self.CreateSetting()
         self.data = self.LoadSetting()
             

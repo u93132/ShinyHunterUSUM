@@ -163,3 +163,6 @@ cython_debug/
 
 # Claude Code local instructions
 CLAUDE.md
+
+# Dev-mode screenshot folder
+pic/

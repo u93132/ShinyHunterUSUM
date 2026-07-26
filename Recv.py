@@ -22,13 +22,11 @@ class Recv:
         self.ir          = None    # pre assign the input redirection object
         self.threshold   = 0.15    # for image identification
         # Recv parameters
-        self.picpath = './image0/' + self.tabname + '/'
-        self.mys  = img2BW(Image.open(resource_path(self.picpath+'Mys.bmp')))
+        self.picpath = resource_path(f'image0/{self.tabname}')
+        self.mys  = img2BW(Image.open(self.picpath/'Mys.bmp'))
         self.lab = [None,None]
-        self.lab[0] = img2BW(Image.open(
-                             resource_path(self.picpath + '/Poipole.bmp') ))
-        self.lab[1] = img2BW(Image.open(
-                             resource_path(self.picpath + '/TypeNull.bmp') ))
+        self.lab[0] = img2BW(Image.open(self.picpath/'Poipole.bmp'))
+        self.lab[1] = img2BW(Image.open(self.picpath/'TypeNull.bmp'))
         self.nom = [None,None]
         self.nom[0] = [136.37,  92.15, 219.39]
         self.nom[1] = [142.00, 147.00, 150.00]
@@ -160,8 +158,8 @@ class Recv:
                     break
             if ((int(self.recvvar.get()) == 0 and res < self.threshold) or
                 (int(self.recvvar.get()) == 1 and res < 0.4)):
-                img0.save(f'{self.General.shotpath}'
-                          f'/{self.General.start_count:04d}.jpg')
+                img0.save(self.General.shotpath /
+                          f'{self.General.start_count:04d}.jpg')
                 self.ir.return_control()
                 self.General.ConnectState(0)
                 self.General.ConnectState(-1)

@@ -32,7 +32,7 @@ class ShinyHunterUSUM(tk.Tk):
         myFont = tkfont.Font(family=FindFont(), size=9)
         self.option_add( '*font', myFont )
         # Load Icons
-        self.iconbitmap(bitmap=resource_path('./image0/star.ico'))
+        self.iconbitmap(bitmap=str(resource_path('image0/star.ico')))
         # Locate to the middle
         ws = self.winfo_screenwidth()
         hs = self.winfo_screenheight()
@@ -44,17 +44,7 @@ class ShinyHunterUSUM(tk.Tk):
         self.geometry(f'{w}x{h}+{int(x)}+{int(y)}')
         self.resizable(width=False, height=False)
         # Load images in ./image0
-        self.bitmap = {}
-        for i in os.listdir(resource_path('./image0')):
-            temp = i.split('.')
-            if len(temp) > 1:
-                if not temp[1] == 'ico':
-                    if temp[1] == 'gif':
-                        self.bitmap[temp[0]] = tk.PhotoImage(
-                                 file=(resource_path('./image0/'+ i)) )
-                    else:
-                        self.bitmap[temp[0]] = ImageTk.PhotoImage(
-                            Image.open(resource_path('./image0/'+ i)) )
+        self.bitmap = load_bitmaps('image0')
         # Parameters
         self.bytes = [b'', b'']
         self.image = [None,None]
@@ -149,11 +139,14 @@ class ShinyHunterUSUM(tk.Tk):
         # Return control to physical buttons when closing application
         try:
             self.ir.return_control()
-            base_path = sys._MEIPASS
         except Exception:
             self.destroy()
-        else:
+            return
+        # The packed exe needs a hard exit, plain destroy() in dev
+        if getattr(sys, 'frozen', False):
             os.kill(os.getpid(), signal.SIGTERM)
+        else:
+            self.destroy()
 
     def screenSwitch(self):
         # To have better performance, only one screen is updating
