@@ -1,4 +1,4 @@
-import sys, os, time, math, io, ctypes, _thread, socket, signal
+import sys, os, time, math, io, ctypes, threading, socket, signal
 from datetime import datetime
 
 from PIL import Image, ImageTk
@@ -251,7 +251,9 @@ class ShinyHunterUSUM(tk.Tk):
 
     def Connect3DS(self):
         if str(self.General.ConnectButton['relief']) == 'raised':
-            self.TID = _thread.start_new_thread(self.main_procedure, ())
+            self.TID = threading.Thread(target=self.main_procedure,
+                                        name='main-procedure', daemon=True)
+            self.TID.start()
         else:
             self.ir.return_control()
             self.General.ConnectState(0)
@@ -339,11 +341,9 @@ class ShinyHunterUSUM(tk.Tk):
                 self.General.ConnectState(-1)
                 self.msgbox.MsgAppend('Error: Cannot build connection')
                 raise Exception('Cannot build connection')
-            try:
-               self.TIDb = _thread.start_new_thread(self.background_thread, ())
-            except:
-                print ('Error: unable to start thread')
-                quit()
+            self.TIDb = threading.Thread(target=self.background_thread,
+                                         name='stream', daemon=True)
+            self.TIDb.start()
             # Create a Input Redirection connection
             self.msgbox.MsgAppend('Step 4: Build input redirection server...')
             self.ir = LumaInputServer(self.General.clientIP)
@@ -364,26 +364,26 @@ class ShinyHunterUSUM(tk.Tk):
             self.GUI2data(currset)
             self.General.WriteSetting(self.General.data)            
             # Start main procedure
-            try:
-                if int(self.General.Tab.get()) == 0:
-                    self.msgbox.MsgAppend('Step 5: Start shiny hunting...')
-                    self.Battle.ir           = self.ir
-                    self.TIDm = _thread.start_new_thread(
-                                self.Battle.main_procedure, ())
-                elif int(self.General.Tab.get()) == 1:
-                    self.msgbox.MsgAppend('Step 5: Start receiving pokemon...')
-                    self.Recv.ir           = self.ir
-                    self.TIDm = _thread.start_new_thread(
-                                self.Recv.main_procedure, () )
-                elif int(self.General.Tab.get()) == 2:
-                    self.msgbox.MsgAppend('Step 5: Start lottery draw...')
-                    self.Lotto.ir           = self.ir
-                    self.TIDm = _thread.start_new_thread(
-                                self.Lotto.main_procedure, () )
-                self.General.ConnectButton.config(state = 'normal')
-            except:
-                print ("Error: unable to start thread")
-                quit()
+            if int(self.General.Tab.get()) == 0:
+                self.msgbox.MsgAppend('Step 5: Start shiny hunting...')
+                self.Battle.ir = self.ir
+                self.TIDm = threading.Thread(
+                            target=self.Battle.main_procedure,
+                            name='battle', daemon=True)
+            elif int(self.General.Tab.get()) == 1:
+                self.msgbox.MsgAppend('Step 5: Start receiving pokemon...')
+                self.Recv.ir = self.ir
+                self.TIDm = threading.Thread(
+                            target=self.Recv.main_procedure,
+                            name='recv', daemon=True)
+            elif int(self.General.Tab.get()) == 2:
+                self.msgbox.MsgAppend('Step 5: Start lottery draw...')
+                self.Lotto.ir = self.ir
+                self.TIDm = threading.Thread(
+                            target=self.Lotto.main_procedure,
+                            name='lotto', daemon=True)
+            self.TIDm.start()
+            self.General.ConnectButton.config(state = 'normal')
 
     def settingswitch(self, event=None):
         currset = self.General.settingGetInd()
