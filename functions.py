@@ -1,5 +1,6 @@
 import tkinter.font as tkfont
 import os, re, sys
+from PIL import ImageStat
 
 # Get rid of system language issues
 def FindFont():
@@ -37,24 +38,13 @@ def i2L(x):
 # Image data compression to have better analyze performance
 # output: 1-D list with gray scale information
 def img2BW(img):
-    img = img.convert('L').rotate(90, expand=True)
-    pixels = list(img.getdata())
-    width, height = img.size
-    return [pixels[i * width + j] for i in range(height)
-                                  for j in range(width)]
+    # getdata() already yields pixels row by row
+    return list(img.convert('L').rotate(90, expand=True).getdata())
 
 # Image data compression to have better analyze performance
 # output: average RGB of a given block
 def img2avRGB(img):
-    img = img.convert('RGB').rotate(90, expand=True)
-    pixels = list(img.getdata())
-    width, height = img.size
-    temp = [pixels[i * width + j] for i in range(height)
-                                  for j in range(width)]
-    R = sum([i[0] for i in temp])/width/height
-    G = sum([i[1] for i in temp])/width/height
-    B = sum([i[2] for i in temp])/width/height
-    return [R,G,B]
+    return ImageStat.Stat(img.convert('RGB')).mean
 
 def diffnorm(a,b):
     return sum([(i-j)**2 for i, j in zip(a, b)])**0.5
