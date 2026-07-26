@@ -165,9 +165,8 @@ class Battle:
             now = datetime.now()
             current_time = now.strftime("%H:%M:%S")
             self.msgbox.MsgAppend(
-                            ('Encounter %04d' % self.General.start_count) +
-                             ' - ' + current_time + ' - ' +
-                            ('%i msec' % t_use) )
+                f'Encounter {self.General.start_count:04d}'
+                f' - {current_time} - {int(t_use)} msec' )
             # Update the counter and plus one
             self.General.CounterPlusOne()
             
@@ -180,12 +179,12 @@ class Battle:
                     self.General.ConnectState(-1)
                     self.msgbox.msgbox.config(bg = 'red')
                     self.msgbox.MsgAppend(
-                        ('Encounter %04d' % self.General.start_count) +
-                         ' - N3DS crush?' )
+                        f'Encounter {self.General.start_count:04d}'
+                        ' - N3DS crush?' )
                     break
             if t_use > self.chat:
-                img0.save(self.General.shotpath +
-                          '/' + ('%04d' % self.General.start_count) +'.jpg')
+                img0.save(f'{self.General.shotpath}'
+                          f'/{self.General.start_count:04d}.jpg')
                 self.ir.return_control()
                 self.General.ConnectState(0)
                 self.General.ConnectState(-1)

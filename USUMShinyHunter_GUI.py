@@ -41,7 +41,7 @@ class ShinyHunterUSUM(tk.Tk):
         h=450
         x = (ws/2) - (w/2)
         y = (hs/2) - (h/2)
-        self.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self.geometry(f'{w}x{h}+{int(x)}+{int(y)}')
         self.resizable(width=False, height=False)
         # Load images in ./image0
         self.bitmap = {}
@@ -302,14 +302,12 @@ class ShinyHunterUSUM(tk.Tk):
                 self.General.ConnectState(-1)
                 self.msgbox.MsgAppend('Cannot build connection')
                 raise Exception('Error: Cannot build connection')
-            self.msgbox.MsgAppend('PC IP:      %s'
-                                  % self.tcp_socket.getsockname()[0])
-            self.msgbox.MsgAppend('PC port:    %s'
-                                  % self.tcp_socket.getsockname()[1])
-            self.msgbox.MsgAppend('N3DS IP:    %s'
-                                  % self.tcp_socket.getpeername()[0])
-            self.msgbox.MsgAppend('N3DS port:  %s'
-                                  % self.tcp_socket.getpeername()[1])
+            pcip, pcport = self.tcp_socket.getsockname()
+            dsip, dsport = self.tcp_socket.getpeername()
+            self.msgbox.MsgAppend(f'PC IP:      {pcip}')
+            self.msgbox.MsgAppend(f'PC port:    {pcport}')
+            self.msgbox.MsgAppend(f'N3DS IP:    {dsip}')
+            self.msgbox.MsgAppend(f'N3DS port:  {dsport}')
             # Setup streaming by sending packets
             self.msgbox.MsgAppend('Step 2: Set up streaming...')
             for i in range(2):
@@ -330,8 +328,8 @@ class ShinyHunterUSUM(tk.Tk):
                                        .replace('411f',i2L(self.General.serverport))) )
                 time.sleep(0.1)
             # Set up UDP socket on PC
-            self.msgbox.MsgAppend( 'Step 3: Listen NTR Packets on port '+
-                            str(self.General.serverport) +'...' )
+            self.msgbox.MsgAppend( 'Step 3: Listen NTR Packets on port '
+                                   f'{self.General.serverport}...' )
             try:
                 self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 self.udp_socket.bind((self.General.serverIP, self.General.serverport))

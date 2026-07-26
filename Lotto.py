@@ -126,17 +126,18 @@ class Lotto:
                     self.General.ConnectState(0)
                     self.General.ConnectState(-1)
                     self.msgbox.msgbox.config(bg = 'red')
-                    self.msgbox.MsgAppend(('Loto %04d' % self.General.start_count) +
-                                          ' - N3DS crush?')
+                    self.msgbox.MsgAppend(
+                        f'Loto {self.General.start_count:04d}'
+                        ' - N3DS crush?')
                     break
                 else:
                     self.msgbox.MsgAppend(
-                        ('Loto %04d' % self.General.start_count ) +
-                         ' - ' + current_time + ' - Roto Asking' )
+                        f'Loto {self.General.start_count:04d}'
+                        f' - {current_time} - Roto Asking' )
             elif self.rotostate[res]:
                 self.msgbox.MsgAppend(
-                    ('Loto %04d' % self.General.start_count ) +
-                     ' - ' + current_time + ' - Done' )
+                    f'Loto {self.General.start_count:04d}'
+                    f' - {current_time} - Done' )
                 self.ir.return_control()
                 self.General.CounterPlusOne()
                 self.General.ConnectState(0)
@@ -146,9 +147,8 @@ class Lotto:
                 break
             else:
                 self.msgbox.MsgAppend(
-                    ('Loto %04d' % self.General.start_count ) +
-                     ' - ' + current_time + ' - Roto '  +
-                     self.namelist[res] )
+                    f'Loto {self.General.start_count:04d}'
+                    f' - {current_time} - Roto {self.namelist[res]}' )
             # Update the counter and plus one
             self.General.CounterPlusOne()
             # Game soft reset

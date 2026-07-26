@@ -142,9 +142,8 @@ class Recv:
             current_time = now.strftime("%H:%M:%S")
             # Check the result
             self.msgbox.MsgAppend(
-                        ('Receive %04d' % self.General.start_count ) +
-                         ' - ' + current_time + ' - %.2f' % ((1-res)*100) +
-                         '% Shiny')
+                f'Receive {self.General.start_count:04d}'
+                f' - {current_time} - {(1-res)*100:.2f}% Shiny')
             # Update the counter and plus one
             self.General.CounterPlusOne()
             if res == 1:
@@ -156,13 +155,13 @@ class Recv:
                     self.General.ConnectState(-1)
                     self.msgbox.msgbox.config(bg = 'red')
                     self.msgbox.MsgAppend(
-                        ('Receive %04d' % self.General.start_count) +
-                         ' - N3DS crush?')
+                        f'Receive {self.General.start_count:04d}'
+                        ' - N3DS crush?')
                     break
             if ((int(self.recvvar.get()) == 0 and res < self.threshold) or
                 (int(self.recvvar.get()) == 1 and res < 0.4)):
-                img0.save(self.General.shotpath +
-                          '/' + ('%04d' % self.General.start_count) +'.jpg')
+                img0.save(f'{self.General.shotpath}'
+                          f'/{self.General.start_count:04d}.jpg')
                 self.ir.return_control()
                 self.General.ConnectState(0)
                 self.General.ConnectState(-1)
