@@ -104,7 +104,7 @@ class Recv:
                 self.click(HIDButtons.A)
             else:
                 #print('Step 1:' + str(res))
-                for i in range(100):
+                for j in range(100):
                     # Talk until you find the pokemon's name on the top screen
                     img0 = self.image[1]
                     img1 = self.image[1].crop((170,192,210,204))

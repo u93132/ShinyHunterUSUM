@@ -95,7 +95,7 @@ class Battle:
             # 2700ms for no aura pokemon
             self.chat = 2700
         elif int(self.auravar.get()) == 1:
-            # 8600ms for aura pokemon
+            # 8300ms for aura pokemon
             self.chat = 8300
 
     def findtime(self):
