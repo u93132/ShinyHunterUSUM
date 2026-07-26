@@ -44,6 +44,7 @@ class Battle:
             self.movebtn[i]=tk.Radiobutton(self.frame, width=8, anchor='w',
                                              variable=self.movevar, value=i)
             self.movebtn[i].grid(row=0, column=i+1, padx=0, pady=2, sticky='w')
+            self.movebtn[i].config(command=self.descswitch)
         self.movebtn[0].config(text='Move')
         self.movebtn[1].config(text='Talk')
 
@@ -61,6 +62,19 @@ class Battle:
             self.aurabtn[i].config(command=self.auraswitch)
         self.aurabtn[0].config(text='No aura')
         self.aurabtn[1].config(text='With aura')
+
+        # Hint line for the current Trigger/Type combination
+        self.desclist = {
+            (0, 0): 'Legendaries in Ultra wormholes/normal grass encounter.',
+            (0, 1): 'Stakataka and Blacephalon',
+            (1, 0): 'No Pokemons belong here.',
+            (1, 1): 'Ultra beasts in Ultra wormholes.',
+        }
+        self.desclab = tk.Label(self.frame, anchor='w', justify='left',
+                                wraplength=230)
+        self.desclab.grid(row=2, column=0, columnspan=3,
+                          padx=3, pady=2, sticky='w')
+        self.descswitch()
 
     #############################################################################
     ############################### Functions ###################################
@@ -97,6 +111,13 @@ class Battle:
         elif int(self.auravar.get()) == 1:
             # 8300ms for aura pokemon
             self.chat = 8300
+        self.descswitch()
+
+    def descswitch(self):
+        # Update the hint line to match the Trigger/Type combination
+        self.desclab.config(
+            text=self.desclist[(int(self.movevar.get()),
+                                int(self.auravar.get()))])
 
     def findtime(self):
         # Return the time between 'appear' and 'Go!'
