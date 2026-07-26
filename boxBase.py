@@ -35,7 +35,7 @@ class msgBox:
         self.msgbox.delete(1.0 , tk.END)
         if self.message != ['']:
             for i in range(len(self.message)):
-                string = string+self.message[i]+'\r\n'
+                string = string+self.message[i]+'\n'
             self.msgbox.insert(tk.END,string)
         self.msgbox.see('end')
 

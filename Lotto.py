@@ -103,11 +103,10 @@ class Lotto:
                 # Wait 0.5 seconds until the line on the screen is completed
                 # Then check which one is it
                 time.sleep(0.5)
-                for i in range(len(self.imglist)):
-                    img1 = self.image[1].crop((175,192,199,204))
-                    res = matchtemplate(img2BW(img1), self.imglist[i], 12, 0)
-                    if res < self.threshold:
-                        return i
+                bw = img2BW(self.image[1].crop((175,192,199,204)))
+                for j, tmpl in enumerate(self.imglist):
+                    if matchtemplate(bw, tmpl, 12, 0) < self.threshold:
+                        return j
         return -1
 
     def main_procedure(self):
@@ -127,8 +126,9 @@ class Lotto:
                     self.General.ConnectState(0)
                     self.General.ConnectState(-1)
                     self.msgbox.msgbox.config(bg = 'red')
-                    self.MsgAppend(('Loto %04d' % self.General.start_count) +
-                                   ' - N3DS crush?')
+                    self.msgbox.MsgAppend(('Loto %04d' % self.General.start_count) +
+                                          ' - N3DS crush?')
+                    break
                 else:
                     self.msgbox.MsgAppend(
                         ('Loto %04d' % self.General.start_count ) +

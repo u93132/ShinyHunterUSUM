@@ -159,13 +159,13 @@ class ShinyHunterUSUM(tk.Tk):
         # To have better performance, only one screen is updating
         if int(self.upperVal.get()) == 1:
             self.lowerVal.set(0)
-            self.lowerbtn.config(state = 'disable')
+            self.lowerbtn.config(state = 'disabled')
         else:
             self.upperlabel.config(image = self.bitmap['Upper'])
             self.lowerbtn.config(state = 'normal')
         if int(self.lowerVal.get()) == 1:
             self.upperVal.set(0)
-            self.upperbtn.config(state = 'disable')
+            self.upperbtn.config(state = 'disabled')
         else:
             self.lowerlabel.config(image = self.bitmap['Lower'])
             self.upperbtn.config(state = 'normal')
@@ -174,20 +174,27 @@ class ShinyHunterUSUM(tk.Tk):
         # Fetch data from the UDP socket 
         while True:
             if str(self.General.ConnectButton['relief']) == 'raised':
+                self.upperlabel.config(image = self.bitmap['Upper'])
+                self.lowerlabel.config(image = self.bitmap['Lower'])
                 try:
-                    self.upperlabel.config(image = self.bitmap['Upper'])
-                    self.lowerlabel.config(image = self.bitmap['Lower'])
-                    self.udp_socket.shutdown(socket.SOCK_DGRAM)
+                    self.udp_socket.shutdown(socket.SHUT_RDWR)
                     self.udp_socket.close()
-                    break
-                except:
-                    raise Exception('Error: UDP socket already closed')
+                except OSError:
+                    pass  # already closed by ConnectState(0)
+                break
             # Receive from client:
             try:
                 msg, addr = self.udp_socket.recvfrom(2048)
                 msg = bytearray(msg)
-            except:
-                self.msgbox.MsgAppend('Error: Packet receive error')                
+            except OSError:
+                # Closing the socket on purpose also lands here; only
+                # report when we are still supposed to be connected
+                if str(self.General.ConnectButton['relief']) == 'sunken':
+                    self.msgbox.MsgAppend('Error: Packet receive error')
+                continue
+            # Skip malformed packets (header needs at least 4 bytes)
+            if len(msg) < 4:
+                continue
             # Parse the data header
             frame  = msg[0]
             lastlu = msg[1]
@@ -221,6 +228,7 @@ class ShinyHunterUSUM(tk.Tk):
                                 img = ImageTk.PhotoImage(
                                           self.image[0].resize((96,72)) )
                                 self.lowerlabel.config(image = img)
+                                self.lowerlabel.image = img  # keep a reference, or Tk loses the image
                                 self.upperlabel.config(image = self.bitmap['Upper'])
                             else:
                                 self.lowerlabel.config(image = self.bitmap['Lower'])
@@ -234,6 +242,7 @@ class ShinyHunterUSUM(tk.Tk):
                                 img = ImageTk.PhotoImage(
                                           self.image[1].resize((120,72)) )
                                 self.upperlabel.config(image = img)
+                                self.upperlabel.image = img  # keep a reference, or Tk loses the image
                                 self.lowerlabel.config(image = self.bitmap['Lower'])
                             else:
                                 self.upperlabel.config(image = self.bitmap['Upper'])
@@ -249,6 +258,10 @@ class ShinyHunterUSUM(tk.Tk):
             self.msgbox.MsgAppend('Please wait till this run complete')
 
     def main_procedure(self):
+            # Drop frames left from a previous run, so the wait below
+            # really waits for this run's first frame
+            self.image[0] = None
+            self.image[1] = None
             # Valid the string in entries
             try:
                 check(self.General.IPDS.Entry.get())
@@ -267,7 +280,7 @@ class ShinyHunterUSUM(tk.Tk):
                 raise Exception('Not a number!')
             # Lock down GUI
             self.General.ConnectState(1)
-            self.General.ConnectButton.config(state = 'disable')
+            self.General.ConnectButton.config(state = 'disabled')
             self.msgbox.msgbox.config(bg = 'white')
             # Get IP address and port number
             IPstr = self.General.IPPC.Entry.get()
@@ -334,7 +347,17 @@ class ShinyHunterUSUM(tk.Tk):
             # Create a Input Redirection connection
             self.msgbox.MsgAppend('Step 4: Build input redirection server...')
             self.ir = LumaInputServer(self.General.clientIP)
-            time.sleep(4.5)
+            # Wait until the first complete upper frame arrives (max 30 s);
+            # the tab threads crop self.image[1] right away
+            for i in range(300):
+                if self.image[1] is not None:
+                    break
+                time.sleep(0.1)
+            if self.image[1] is None:
+                self.General.ConnectState(0)
+                self.General.ConnectState(-1)
+                self.msgbox.MsgAppend('Error: No stream from 3DS')
+                raise Exception('No stream from 3DS')
             # Write setting data struct
             currset = self.General.settingGetInd()
             self.General.data[0] = currset

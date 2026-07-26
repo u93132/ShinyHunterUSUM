@@ -79,7 +79,7 @@ class General:
         self.IPDS      = InputBox(self.frameIPDS, 0,
                                           '', '', [0, 18, 0])
         self.IPDS      .Label2.pack(padx=0, pady=0, side='left')
-        self.IPPC      .Entry.insert(0,'192.168.137.50')
+        self.IPDS      .Entry.insert(0,'192.168.137.50')
         # Objects for Counter
         self.frameCounter = tk.Frame(self.frame)
         self.frameCounter .grid(row=1, column=0, padx=3, pady=8, sticky='ew')
@@ -138,7 +138,7 @@ class General:
         self.Counter.Entry.insert(0,str(self.start_count))
         self.GUI2data(self.settingGetInd())
         if str(self.ConnectButton['relief']) == 'sunken':
-            self.Counter.Entry.config(state = 'disable')
+            self.Counter.Entry.config(state = 'disabled')
         self.WriteSetting(self.data)
         
 
@@ -149,7 +149,7 @@ class General:
         
         if i == 0:
             self.ConnectButton.config(relief = 'raised')
-            self.ConnectButton.config(state = 'disable')
+            self.ConnectButton.config(state = 'disabled')
             self.IPDS.Entry.config(state = 'normal')
             self.IPPC.Entry.config(state = 'normal')
             self.Counter.Entry.config(state = 'normal')
@@ -162,22 +162,26 @@ class General:
             for j in range(len(self.TabButton)):
                 self.TabButton[j].config(state = 'normal')
                 self.nb.tab(j+1, state='normal')
-            try:
-                self.udp_socket.shutdown(socket.SHUT_RDWR)
-                self.udp_socket.close()
-            except:
-                self.msgbox.MsgAppend('Error: Cannot close the socket')
+            # Close the UDP socket if this run ever opened one; early
+            # failures (e.g. the TCP step) have nothing to close yet
+            if self.udp_socket is not None:
+                try:
+                    self.udp_socket.shutdown(socket.SHUT_RDWR)
+                    self.udp_socket.close()
+                except OSError:
+                    pass  # already closed by the GUI thread
+                self.udp_socket = None
         elif i == 1:
             self.ConnectButton.config(relief = 'sunken')
-            self.ConnectButton.config(state = 'disable')
-            self.ReturnButton.config(state = 'disable')
-            self.IPDS.Entry.config(state = 'disable')
-            self.IPPC.Entry.config(state = 'disable')
-            self.Counter.Entry.config(state = 'disable')
-            self.setting.config(state = 'disable')
+            self.ConnectButton.config(state = 'disabled')
+            self.ReturnButton.config(state = 'disabled')
+            self.IPDS.Entry.config(state = 'disabled')
+            self.IPPC.Entry.config(state = 'disabled')
+            self.Counter.Entry.config(state = 'disabled')
+            self.setting.config(state = 'disabled')
             for j in range(len(self.TabButton)):
-                self.TabButton[j].config(state = 'disable')
-                self.nb.tab(j+1, state='disable')
+                self.TabButton[j].config(state = 'disabled')
+                self.nb.tab(j+1, state='disabled')
         elif i == -1:
             self.ConnectButton.config(state = 'normal')
             self.ReturnButton.config(state = 'normal')

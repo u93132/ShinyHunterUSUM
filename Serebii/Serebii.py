@@ -161,7 +161,7 @@ except:
     print ("Error: unable to start thread")
     quit()
 # Create a Input Redirection connection
-print('Step 4: Build inour redirection server on PC...')
+print('Step 4: Build input redirection server on PC...')
 server = LumaInputServer(serverIP)
 time.sleep(5)
 

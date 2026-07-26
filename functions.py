@@ -3,18 +3,16 @@ import os, re, sys
 
 # Get rid of system language issues
 def FindFont():
-    FontSet=tkfont.families()
-    if 'Microsoft JhengHei UI' in tkfont.families():
-        return 'Microsoft JhengHei UI'
-    elif 'Microsoft Sans Serif' in tkfont.families():
-        return 'Microsoft Sans Serif'
-    else:
-        return 'calibri'
+    families = tkfont.families()
+    for name in ('Microsoft JhengHei UI', 'Microsoft Sans Serif'):
+        if name in families:
+            return name
+    return 'calibri'
 
 # Make a regular expression
 # for validating an Ip-address
-regex = ('^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}' +
-         '(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$')
+regex = (r'^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}'
+         r'(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$')
  
 # Define a function for
 # validate an Ip address with or without port number
@@ -31,9 +29,9 @@ def check(Ip):
             except:
                 raise Exception("Invalid IP")
 
-# Convert 4bytes int to a little endian string
+# Convert a 16-bit int (e.g. port number) to a little-endian hex string
 def i2L(x):
-    return ''.join([hex(x)[2:][i] for i in (2,3,0,1)])
+    return x.to_bytes(2, 'little').hex()
 
 
 # Image data compression to have better analyze performance
