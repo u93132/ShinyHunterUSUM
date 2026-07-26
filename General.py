@@ -143,7 +143,6 @@ class General:
         if i == 0:
             self.ConnectButton.config(relief = 'raised')
             self.ConnectButton.config(state = 'disabled')
-            self.ResetButton.config(state = 'normal')
             self.IPDS.Entry.config(state = 'normal')
             self.IPPC.Entry.config(state = 'normal')
             self.Counter.Entry.config(state = 'normal')
@@ -179,6 +178,7 @@ class General:
                 self.nb.tab(j+1, state='disabled')
         elif i == -1:
             self.ConnectButton.config(state = 'normal')
+            self.ResetButton.config(state = 'normal')
             self.ReturnButton.config(state = 'normal')
 
     def test3DS(self):
