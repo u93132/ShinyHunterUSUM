@@ -250,7 +250,7 @@ class ShinyHunterUSUM(tk.Tk):
         else:
             self.ir.return_control()
             self.General.ConnectState(0)
-            self.msgbox.MsgAppend('Please wait till this run complete')
+            self.msgbox.MsgAppend('Stopping...')
 
     def main_procedure(self):
             # Drop frames left from a previous run, so the wait below

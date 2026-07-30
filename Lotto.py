@@ -4,7 +4,7 @@ from PIL import Image
 from datetime import datetime
 from functions import *
 from tppflush import *
-from tabBase import TabBase
+from tabBase import TabBase, HuntStopped
 
 # Define the application class
 class Lotto(TabBase):
@@ -57,6 +57,7 @@ class Lotto(TabBase):
         # Ex: return 2 means the return is Roto Catch
         time.sleep(1.0)
         for i in range(100):
+            self.check_stop()
             # Tap the screen until you find "Roto" on the top screen
             img1 = self.image[1].crop((144,192,170,204))
             res = matchtemplate(img2BW(img1), self.img0, 12, 0)
@@ -79,50 +80,53 @@ class Lotto(TabBase):
 
     def main_procedure(self):
         # Start Lotto Drawing
-        while True:
-            # Trigger the event
-            res = self.findloto()
-            # Get current time
-            now = datetime.now()
-            current_time = now.strftime("%H:%M:%S")
-            # Check the draw result
-            if res == -1:
-                try:
-                    # Test if 3DS is still alive
-                    self.General.test3DS()
-                except:
-                    self.General.ConnectState(0)
-                    self.General.ConnectState(-1)
-                    self.msgbox.msgbox.config(bg = 'red')
+        try:
+            while True:
+                # Trigger the event
+                res = self.findloto()
+                # Get current time
+                now = datetime.now()
+                current_time = now.strftime("%H:%M:%S")
+                # Check the draw result
+                if res == -1:
+                    try:
+                        # Test if 3DS is still alive
+                        self.General.test3DS()
+                    except:
+                        self.General.ConnectState(0)
+                        self.General.ConnectState(-1)
+                        self.msgbox.msgbox.config(bg = 'red')
+                        self.msgbox.MsgAppend(
+                            f'Loto {self.General.start_count:04d}'
+                            ' - N3DS crush?')
+                        break
+                    else:
+                        self.msgbox.MsgAppend(
+                            f'Loto {self.General.start_count:04d}'
+                            f' - {current_time} - Roto Asking' )
+                elif self.rotostate[res]:
                     self.msgbox.MsgAppend(
                         f'Loto {self.General.start_count:04d}'
-                        ' - N3DS crush?')
+                        f' - {current_time} - Done' )
+                    self.ir.return_control()
+                    self.General.CounterPlusOne()
+                    self.General.ConnectState(0)
+                    self.General.ConnectState(-1)
+                    self.msgbox.msgbox.config(bg = 'lime')
+                    self.msgbox.MsgAppend('Lotto draw completed!')
                     break
                 else:
                     self.msgbox.MsgAppend(
                         f'Loto {self.General.start_count:04d}'
-                        f' - {current_time} - Roto Asking' )
-            elif self.rotostate[res]:
-                self.msgbox.MsgAppend(
-                    f'Loto {self.General.start_count:04d}'
-                    f' - {current_time} - Done' )
-                self.ir.return_control()
+                        f' - {current_time} - Roto {self.namelist[res]}' )
+                # Update the counter and plus one
                 self.General.CounterPlusOne()
-                self.General.ConnectState(0)
-                self.General.ConnectState(-1)
-                self.msgbox.msgbox.config(bg = 'lime')
-                self.msgbox.MsgAppend('Lotto draw completed!')
-                break
-            else:
-                self.msgbox.MsgAppend(
-                    f'Loto {self.General.start_count:04d}'
-                    f' - {current_time} - Roto {self.namelist[res]}' )
-            # Update the counter and plus one
-            self.General.CounterPlusOne()
-            # Game soft reset and re-enter
-            self.restart_game()
-            if self.stopped_by_user():
-                break
+                # Game soft reset and re-enter
+                self.restart_game()
+        except HuntStopped:
+            # User pressed disconnect: finish the handover and unlock
+            self.General.ConnectState(-1)
+            self.ir.return_control()
 
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct

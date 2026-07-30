@@ -3,6 +3,11 @@ from PIL import Image
 from functions import *
 from tppflush import *
 
+class HuntStopped(Exception):
+    # Raised from the input helpers when the user pressed disconnect;
+    # unwinds any depth of hunting loops back to main_procedure
+    pass
+
 # Shared base class for the feature tabs (Battle / Recv / Lotto):
 # common init plumbing, input helpers, and the soft reset sequence
 class TabBase:
@@ -23,7 +28,14 @@ class TabBase:
     ############################### Functions ##################################
     ############################################################################
 
+    def check_stop(self):
+        # The Connect button pops back up ('raised') on disconnect;
+        # abort the hunt before sending any further input
+        if str(self.General.ConnectButton['relief']) == 'raised':
+            raise HuntStopped
+
     def cpad(self, x, y):
+        self.check_stop()
         d = (x**2 + y**2)**0.5
         d = d + (d == 0.0)
         x = x/d; y = y/d
@@ -33,6 +45,7 @@ class TabBase:
             self.ir.send(print_sent=False)
 
     def click(self, button, t = 0.08):
+        self.check_stop()
         for i in range(3):
             self.ir.press(button)
             self.ir.send(print_sent=False)
@@ -43,6 +56,7 @@ class TabBase:
         time.sleep(t)
 
     def restart_game(self):
+        self.check_stop()
         # Game soft reset
         for i in range(2):
             self.ir.press(HIDButtons.L)
@@ -67,11 +81,3 @@ class TabBase:
                 break
             else:
                 self.click(HIDButtons.START,0.2)
-
-    def stopped_by_user(self):
-        # True when the user pressed disconnect during this round
-        if str(self.General.ConnectButton['relief']) == 'raised':
-            self.General.ConnectState(-1)
-            self.ir.return_control()
-            return True
-        return False
