@@ -305,9 +305,25 @@ class General:
         self.lockedslot = num
         return True
 
+    def OldFormat(self, path):
+        # True when the file exists and still uses the old 12-section
+        # format (its first line is the numeric header)
+        if not path.is_file():
+            return False
+        with open(path, 'r') as f:
+            return f.readline().strip().isdigit()
+
     def MigrateSetting(self):
         # Split the old 12-section settings file into the per-slot
-        # files (old Set #k -> file -k.txt), keeping counters
+        # files (old Set #k -> file -k.txt), keeping counters.
+        # Runs only on the first launch after the upgrade: any
+        # existing per-slot file means migration already happened,
+        # so a slot file deleted later comes back as defaults instead
+        # of being resurrected from the old snapshot
+        for i in range(12):
+            path = self.settingfolder / f'USUMShinyHunter-{i+1}.txt'
+            if path.is_file() and not self.OldFormat(path):
+                return
         for name in ('USUMShinyHunter-1.txt', 'USUMShinyHunter.txt'):
             old = self.settingfolder / name
             if not old.is_file():
@@ -324,12 +340,12 @@ class General:
                 elif 0 <= ind < 12:
                     self.ParseFields([line], data[1][ind])
             # The old file is kept untouched so an old version of the
-            # program can still read it; only missing slot files are
-            # created. Exception: an old-format -1.txt collides with
-            # slot 1's filename and is rewritten in place
+            # program can still read it; slot files are created when
+            # missing, and numbered files still in the old format
+            # (interim versions) are rewritten in place
             for i in range(12):
                 path = self.settingfolder / f'USUMShinyHunter-{i+1}.txt'
-                if path == old or not path.is_file():
+                if not path.is_file() or self.OldFormat(path):
                     self.WriteSlotFile(i, data[1][i])
         
         
