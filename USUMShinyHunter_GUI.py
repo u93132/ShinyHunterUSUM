@@ -16,6 +16,8 @@ from Battle  import *
 from Recv    import *
 from Lotto   import *
 
+VERSION = '0.4.0'
+
 # Define the application class
 class ShinyHunterUSUM(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -112,6 +114,8 @@ class ShinyHunterUSUM(tk.Tk):
         self.frame2 = tk.Frame(self)
         self.frame2.grid(row=2, column=0, padx=10, pady=0, sticky='ew')
         self.msgbox = msgBox(self.frame2, 35, 10)
+        self.msgbox.MsgAppend('Welcome to USUM Shiny Hunter. '
+                              f'This is v.{VERSION}')
 
         ########################################################################
         ################################ Notebook ##############################
@@ -120,14 +124,13 @@ class ShinyHunterUSUM(tk.Tk):
         # Connect Notebook object with base class functions
         self.General = General(self.nb, self.msgbox)
         self.General .ConnectButton.config(command=self.Connect3DS)
-        self.General .ReturnButton .config(command=self.ReturnControl)
         self.General .setting.bind('<<ComboboxSelected>>', self.settingswitch)
 
         self.Lotto  = Lotto (self.nb, self.General, self.msgbox, self.image)
         self.Recv   = Recv  (self.nb, self.General, self.msgbox, self.image)
         self.Battle = Battle(self.nb, self.General, self.msgbox, self.image)
 
-        currset = self.General.data[0]
+        currset = (self.General.lockedslot or 1) - 1
         self.General.setting.set(self.General.settinglist[currset])
         self.data2GUI(currset)
 
@@ -273,6 +276,9 @@ class ShinyHunterUSUM(tk.Tk):
             except:
                 self.msgbox.MsgAppend('Error: Not a number for the counter!')
                 raise Exception('Not a number!')
+            # Connect-time lock detection on the selected slot
+            if not self.General.AcquireSlot():
+                raise Exception('Setting file locked')
             # Lock down GUI
             self.General.ConnectState(1)
             self.General.ConnectButton.config(state = 'disabled')
@@ -351,7 +357,6 @@ class ShinyHunterUSUM(tk.Tk):
                 raise Exception('No stream from 3DS')
             # Write setting data struct
             currset = self.General.settingGetInd()
-            self.General.data[0] = currset
             self.GUI2data(currset)
             self.General.WriteSetting(self.General.data)            
             # Start main procedure
@@ -393,13 +398,6 @@ class ShinyHunterUSUM(tk.Tk):
         self.Battle.data2GUI(i)
         self.Recv.data2GUI(i)
         self.Lotto.data2GUI(i)
-
-    def ReturnControl(self):
-        # Return control to physical buttons
-        try:
-            self.ir.return_control()
-        except:
-            self.msgbox.MsgAppend('Error: Input redirection not setup')
 
 app = ShinyHunterUSUM()
 app.mainloop()

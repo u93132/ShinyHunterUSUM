@@ -1,10 +1,24 @@
 import tkinter as tk
 from tkinter import ttk
-import time, tempfile, socket, sys
+import time, tempfile, socket, sys, msvcrt
 from PIL import Image
 from datetime import datetime
 from functions import *
 from boxBase import *
+
+def lock_slot(folder, num):
+    # Try to lock settings slot `num`. Returns the open lock handle,
+    # or None when another running instance owns that slot.
+    # The handle must stay open for as long as the slot is in use;
+    # Windows releases the lock automatically when the process exits,
+    # so a crash can never leave a slot permanently stuck
+    f = open(folder / f'USUMShinyHunter-{num}.lock', 'a')
+    try:
+        msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        return f
+    except OSError:
+        f.close()
+        return None
 
 # Define the application class
 class General:
@@ -21,7 +35,7 @@ class General:
         self.msgbox      = msgbox  # message box
         self.serverIP    = '192.168.137.1'
         self.serverport  = 8001
-        self.clientIP    = '192.168.137.60'
+        self.clientIP    = '192.168.137.50'
         self.tcp_socket  = None    # pre assign the NTR tcp object
         self.udp_socket  = None    # pre assign the NTR udp object
         self.start_count = 1
@@ -75,10 +89,7 @@ class General:
         self.ResetButton   = tk.Button(self.Counter.frame,
                                        image=self.bitmap['return'],
                                        command=self.CounterReset)
-        self.ResetButton   .pack(padx=2, pady=0, side='right')
-        self.ReturnButton  = tk.Button(self.Counter.frame,
-                                       image=self.bitmap['return'])
-        #self.ReturnButton .pack(padx=0, pady=0, side='right')
+        self.ResetButton   .pack(padx=0, pady=0, side='right')
         # Objects for Tab Control
         self.frameTabCon = tk.Frame(self.frame)
         self.frameTabCon .grid(row=0, column=1, padx=5, pady=0, sticky='nse')
@@ -97,15 +108,33 @@ class General:
             self.TabButton[i].grid(row=i, column=0, padx=0, pady=0, sticky='w')
             self.TabButton[i].config(text=self.framename[i+1])
         # Settings
-        self.settingpath = Path(tempfile.gettempdir()) / 'USUMShinyHunter.txt'
+        # Settings: one numbered file per Set (Set #k <-> file -k.txt).
+        # Lock detection happens at startup and on Connect only; the
+        # lock handle must stay referenced or GC would release it
+        self.settingfolder = Path(tempfile.gettempdir())
         self.settinglist = ['Set #'+str(i+1) for i in range(12)]
         self.setting     = ttk.Combobox(self.frame, state = 'readonly')
         self.setting     .grid(row=1, column=1, padx=5, pady=8, sticky='e')
         self.setting     .config(width = 6, values = self.settinglist)
 
-        if not self.settingpath.is_file():
-            self.CreateSetting()
+        self.MigrateSetting()
         self.data = self.LoadSetting()
+        # Startup lock detection: start on Set #1 and advance to the
+        # first slot no other running instance holds (#1 -> #2 -> ...)
+        self.lockedslot = None
+        self._settinglock = None
+        for k in range(1, 13):
+            self._settinglock = lock_slot(self.settingfolder, k)
+            if self._settinglock is not None:
+                self.lockedslot = k
+                break
+            self.msgbox.MsgAppend(f'Error: Setting #{k} locked by '
+                                  'another instance')
+        if self.lockedslot is None:
+            self.msgbox.MsgAppend('Error: All settings locked, '
+                                  'nothing will be saved')
+        elif self.lockedslot > 1:
+            self.msgbox.MsgAppend(f'Using Set #{self.lockedslot}')
             
     ############################################################################
     ################################ Functions #################################
@@ -136,8 +165,8 @@ class General:
         
 
     def ConnectState(self, i):
-        # i =-1: recover the recover/return button
-        # i = 0: disable the connect/return button, every thing recovered
+        # i =-1: recover the connect/reset button
+        # i = 0: disable the connect/reset button, every thing recovered
         # i = 1: lock down everything
         
         if i == 0:
@@ -149,7 +178,6 @@ class General:
             self.setting.config(state = 'readonly')
             # Write setting data struct
             currset = self.settingGetInd()
-            self.data[0] = currset
             self.GUI2data(currset)
             self.WriteSetting(self.data) 
             for j in range(len(self.TabButton)):
@@ -168,7 +196,6 @@ class General:
             self.ConnectButton.config(relief = 'sunken')
             self.ConnectButton.config(state = 'disabled')
             self.ResetButton.config(state = 'disabled')
-            self.ReturnButton.config(state = 'disabled')
             self.IPDS.Entry.config(state = 'disabled')
             self.IPPC.Entry.config(state = 'disabled')
             self.Counter.Entry.config(state = 'disabled')
@@ -179,7 +206,6 @@ class General:
         elif i == -1:
             self.ConnectButton.config(state = 'normal')
             self.ResetButton.config(state = 'normal')
-            self.ReturnButton.config(state = 'normal')
 
     def test3DS(self):
         # Test if 3DS is still alive
@@ -208,65 +234,103 @@ class General:
         self.Counter.Entry.insert(0,str(self.data[1][i]['count']))
         self.Tab.set(int(self.data[1][i]['currtab']))
 
-    def CreateSetting(self):
-        # Create a new setting file to temp folder
-        with open(self.settingpath, 'w') as f:
-            f.write('0\n')
-            for i in range(12):
-                f.write('#' + str(i+1)+'\n')
-                f.write('pcip=\n')
-                f.write('3dsip=\n')
-                f.write('count=1\n')
-                f.write('currtab=0\n')
-                f.write('move=0\n')
-                f.write('aura=0\n')
-                f.write('recv=0\n')
-                f.write('loto=1,2\n')
-
-    def LoadSetting(self):
-        # Initialize data struct in Python
+    def DefaultData(self):
+        # Fresh data struct: 12 default slots
         data = [0, []]
         for i in range(12):
-            x = {'pcip':'', '3dsip':'', 'count':1, 'currtab':0, 'move':0, 'aura':0,
-                 'recv':0, 'loto':[1,2]}
-            data[1].append(x)
-        # Read the setting file
-        with open(self.settingpath, 'r') as f:
-            lines = f.read().split('\n')
-        # Fetch data to the struct
-        data[0] = int(lines[0]) # Latest saved setting file
-        ind = -1                # current read setting file
-        for i in range(1,len(lines)):
-            temp = lines[i].split('=')
-            if len(temp) == 1:
-                ind = ind + 1
-            else:
-                if temp[0] == 'loto':
-                    try:
-                        data[1][ind]['loto'] = [int(k) for k in temp[1].split(',')]
-                    except:
-                        data[1][ind]['loto'] = []
-                elif (temp[0] == 'pcip') or (temp[0] == '3dsip'):
-                    data[1][ind][temp[0]] = temp[1]
-                else:
-                    data[1][ind][temp[0]] = int(temp[1])
+            data[1].append({'pcip':'', '3dsip':'', 'count':1,
+                            'currtab':0, 'move':0, 'aura':0,
+                            'recv':0, 'loto':[1,2]})
         return data
 
-    def WriteSetting(self,data):
-        # Write data struct to setting file
-        with open(self.settingpath, 'w') as f:
-            f.write(str(data[0])+'\n')
+    def ParseFields(self, lines, slot):
+        # Fetch key=value lines into one slot dict
+        for line in lines:
+            temp = line.split('=')
+            if len(temp) < 2:
+                continue
+            if temp[0] == 'loto':
+                try:
+                    slot['loto'] = [int(k) for k in temp[1].split(',')]
+                except ValueError:
+                    slot['loto'] = []
+            elif temp[0] in ('pcip', '3dsip'):
+                slot[temp[0]] = temp[1]
+            elif temp[0] in slot:
+                slot[temp[0]] = int(temp[1])
+
+    def LoadSetting(self):
+        # Read every slot file that exists; missing slots stay default
+        data = self.DefaultData()
+        for i in range(12):
+            path = self.settingfolder / f'USUMShinyHunter-{i+1}.txt'
+            if path.is_file():
+                with open(path, 'r') as f:
+                    self.ParseFields(f.read().split('\n'), data[1][i])
+        return data
+
+    def WriteSlotFile(self, i, d):
+        # Write one slot dict to its numbered file (i is 0-based)
+        with open(self.settingfolder / f'USUMShinyHunter-{i+1}.txt',
+                  'w') as f:
+            f.write(f"pcip={d['pcip']}\n")
+            f.write(f"3dsip={d['3dsip']}\n")
+            f.write(f"count={d['count']}\n")
+            f.write(f"currtab={d['currtab']}\n")
+            f.write(f"move={d['move']}\n")
+            f.write(f"aura={d['aura']}\n")
+            f.write(f"recv={d['recv']}\n")
+            f.write('loto=' + ','.join(str(k) for k in d['loto']) + '\n')
+
+    def WriteSetting(self, data):
+        # Write the selected slot to its own file; the other slots
+        # belong to their own files and are never touched here
+        i = self.settingGetInd()
+        self.WriteSlotFile(i, data[1][i])
+
+    def AcquireSlot(self):
+        # Connect-time lock detection: own the selected slot's lock
+        # before hunting starts; keep the old lock on failure
+        num = self.settingGetInd() + 1
+        if num == self.lockedslot:
+            return True
+        newlock = lock_slot(self.settingfolder, num)
+        if newlock is None:
+            self.msgbox.MsgAppend(f'Error: Setting #{num} locked by '
+                                  'another instance')
+            return False
+        if self._settinglock is not None:
+            self._settinglock.close()   # closing releases the old lock
+        self._settinglock = newlock
+        self.lockedslot = num
+        return True
+
+    def MigrateSetting(self):
+        # Split the old 12-section settings file into the per-slot
+        # files (old Set #k -> file -k.txt), keeping counters
+        for name in ('USUMShinyHunter-1.txt', 'USUMShinyHunter.txt'):
+            old = self.settingfolder / name
+            if not old.is_file():
+                continue
+            with open(old, 'r') as f:
+                lines = f.read().split('\n')
+            if not (lines and lines[0].strip().isdigit()):
+                continue   # already the per-slot format
+            data = self.DefaultData()
+            ind = -1
+            for line in lines[1:]:
+                if line.startswith('#'):
+                    ind = ind + 1
+                elif 0 <= ind < 12:
+                    self.ParseFields([line], data[1][ind])
+            # The old file is kept untouched so an old version of the
+            # program can still read it; only missing slot files are
+            # created. Exception: an old-format -1.txt collides with
+            # slot 1's filename and is rewritten in place
             for i in range(12):
-                f.write('#' + str(i+1)+'\n')
-                f.write('pcip='   + data[1][i]['pcip']                +'\n')
-                f.write('3dsip='  + data[1][i]['3dsip']               +'\n')
-                f.write('count='  + str(data[1][i]['count'])          +'\n')
-                f.write('currtab='+ str(data[1][i]['currtab'])        +'\n')
-                f.write('move='   + str(data[1][i]['move'])           +'\n')
-                f.write('aura='   + str(data[1][i]['aura'])           +'\n')
-                f.write('recv='   + str(data[1][i]['recv'])           +'\n')
-                s = ''.join([str(i)+',' for i in data[1][i]['loto']])[:-1]
-                f.write('loto='   + s +'\n')
+                path = self.settingfolder / f'USUMShinyHunter-{i+1}.txt'
+                if path == old or not path.is_file():
+                    self.WriteSlotFile(i, data[1][i])
         
         
     
