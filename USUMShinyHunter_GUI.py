@@ -114,8 +114,8 @@ class ShinyHunterUSUM(tk.Tk):
         self.frame2 = tk.Frame(self)
         self.frame2.grid(row=2, column=0, padx=10, pady=0, sticky='ew')
         self.msgbox = msgBox(self.frame2, 35, 10)
-        self.msgbox.MsgAppend('Welcome to USUM Shiny Hunter. '
-                              f'This is v.{VERSION}')
+        self.msgbox.MsgAppend('Welcome to USUM Shiny Hunter '
+                              f'v.{VERSION}')
 
         ########################################################################
         ################################ Notebook ##############################
