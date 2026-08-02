@@ -67,26 +67,6 @@ class Recv(TabBase):
     ############################### Functions ###################################
     #############################################################################
 
-    def wait_for(self, box, template, h_t, w_diff=0,
-                 button=None, thr=None, n=200):
-        # Press `button` (if given) until `template` matches the crop
-        # `box` of the top screen.
-        # True:  matched
-        # False: timeout
-        # (a disconnect raises HuntStopped through check_stop)
-        if thr is None:
-            thr = self.threshold
-        for i in range(n):
-            self.check_stop()
-            img1 = self.image[1].crop(box)
-            res = matchtemplate(img2BW(img1), template, h_t, w_diff)
-            time.sleep(0.05)
-            if res < thr:
-                return True
-            if button is not None:
-                self.click(button)
-        return False
-
     def findrecv(self, poke):
         # Input
         # 0 is Poipole
