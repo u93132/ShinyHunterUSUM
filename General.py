@@ -90,6 +90,8 @@ class General:
                                        image=self.bitmap['return'],
                                        command=self.CounterReset)
         self.ResetButton   .pack(padx=0, pady=0, side='right')
+        ToolTip(self.ConnectButton, 'Connect to 3DS')
+        ToolTip(self.ResetButton,   'Reset the counter')
         # Objects for Tab Control
         self.frameTabCon = tk.Frame(self.frame)
         self.frameTabCon .grid(row=0, column=1, padx=5, pady=0, sticky='nse')

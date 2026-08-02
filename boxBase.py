@@ -1,5 +1,40 @@
 import tkinter as tk
 
+class ToolTip:
+    # Hover hint for a widget: shows after a short delay, hides on
+    # leave or click
+    def __init__(self, widget, text, delay=500):
+        self.widget = widget
+        self.text   = text
+        self.delay  = delay
+        self.tip    = None
+        self.after_id = None
+        widget.bind('<Enter>', self.schedule)
+        widget.bind('<Leave>', self.hide)
+        widget.bind('<ButtonPress>', self.hide)
+
+    def schedule(self, event=None):
+        self.after_id = self.widget.after(self.delay, self.show)
+
+    def show(self):
+        if self.tip is not None:
+            return
+        x = self.widget.winfo_rootx() + 10
+        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
+        self.tip = tk.Toplevel(self.widget)
+        self.tip.wm_overrideredirect(True)   # no window frame
+        self.tip.wm_geometry(f'+{x}+{y}')
+        tk.Label(self.tip, text=self.text, bg='lightyellow',
+                 relief='solid', borderwidth=1, padx=4).pack()
+
+    def hide(self, event=None):
+        if self.after_id is not None:
+            self.widget.after_cancel(self.after_id)
+            self.after_id = None
+        if self.tip is not None:
+            self.tip.destroy()
+            self.tip = None
+
 class InputBox:
     def __init__(self, frame, mode, Text1, Text2, WidthList):
         self.frame=frame
