@@ -10,6 +10,7 @@ from tabBase import TabBase, HuntStopped
 class Battle(TabBase):
     tabname   = 'Battle'
     threshold = 0.10    # for image identification
+    logname   = 'Encounter'
 
     def __init__(self, nb, General, msgbox, image):
 
@@ -38,7 +39,7 @@ class Battle(TabBase):
             self.movebtn[i]=tk.Radiobutton(self.frame, width=8, anchor='w',
                                              variable=self.movevar, value=i)
             self.movebtn[i].grid(row=0, column=i+1, padx=0, pady=2, sticky='w')
-            self.movebtn[i].config(command=self.descswitch)
+            self.movebtn[i].config(command=self.auraswitch)
         self.movebtn[0].config(text='Move')
         self.movebtn[1].config(text='Talk')
 
@@ -77,10 +78,13 @@ class Battle(TabBase):
     def auraswitch(self):
         if int(self.auravar.get()) == 0:
             # 2700ms for no aura pokemon
-            self.chat = 2700
+            if int(self.movevar.get()) == 0:
+                self.chat = 2700
+            else:
+                self.chat = 2200
         elif int(self.auravar.get()) == 1:
-            # 8300ms for aura pokemon
-            self.chat = 8300
+            # 8600ms for aura pokemon
+            self.chat = 8500
         self.descswitch()
 
     def descswitch(self):
@@ -120,54 +124,58 @@ class Battle(TabBase):
                     if res < self.threshold:
                         t_go = time.time()
                         #print("Found go!")
-                        t_use = int((t_go - t_app)*1000)
+                        t_use = (t_go - t_app)*1000
                         return t_use, img0
                     time.sleep(0.1)
-        return 0.0, img0
+        return 1, img0
 
-    def main_procedure(self):
+    def hunt(self):
         # Start Shiny Hunting
-        try:
-            while True:
-                # Check if it is shiny
-                t_use, img0 = self.findtime()
-                self.ir.clear_everything()
-                self.ir.circle_pad_neutral()
-                now = datetime.now()
-                current_time = now.strftime("%H:%M:%S")
+        while True:
+            # Check if it is shiny
+            t_use, img0 = self.findtime()
+            self.ir.clear_everything()
+            self.ir.circle_pad_neutral()
+            now = datetime.now()
+            current_time = now.strftime("%H:%M:%S")
+            if isinstance(t_use, int):
+                try:
+                    # Test if 3DS is still alive
+                    self.General.test3DS()
+                except:
+                    self.General.ConnectState(0)
+                    self.General.ConnectState(-1)
+                    self.msgbox.msgbox.config(bg = 'red')
+                    self.msgbox.MsgAppend(
+                        f'Encounter {self.General.start_count:04d}'
+                        ' - N3DS crush?' )
+                    break
+                else:
+                    combine_images(self.image).save(self.General.shotpath /
+                          f'Debug_Encounter_'
+                          f'{self.General.start_count:04d}_'
+                          f'{t_use:03d}.jpg')
+                    self.msgbox.MsgAppend(
+                        f'Encounter {self.General.start_count:04d}'
+                        f' - {current_time} - Error {t_use:03d}')
+            else:
+                # Check the result, res close to 0 means shiny
                 self.msgbox.MsgAppend(
                     f'Encounter {self.General.start_count:04d}'
                     f' - {current_time} - {int(t_use)} msec' )
-                # Update the counter and plus one
-                self.General.CounterPlusOne()
-
-                if t_use == 0.0:
-                    try:
-                        # Test if 3DS is still alive
-                        self.General.test3DS()
-                    except:
-                        self.General.ConnectState(0)
-                        self.General.ConnectState(-1)
-                        self.msgbox.msgbox.config(bg = 'red')
-                        self.msgbox.MsgAppend(
-                            f'Encounter {self.General.start_count:04d}'
-                            ' - N3DS crush?' )
-                        break
-                if t_use > self.chat:
-                    img0.save(self.General.shotpath /
-                              f'{self.General.start_count:04d}.jpg')
-                    self.ir.return_control()
-                    self.General.ConnectState(0)
-                    self.General.ConnectState(-1)
-                    self.msgbox.msgbox.config(bg = 'yellow')
-                    self.msgbox.MsgAppend('Shiny hunt completed!')
-                    break
-                # Game soft reset and re-enter
-                self.restart_game()
-        except HuntStopped:
-            # User pressed disconnect: finish the handover and unlock
-            self.General.ConnectState(-1)
-            self.ir.return_control()
+            if t_use > self.chat:
+                img0.save(self.General.shotpath /
+                          f'Encounter_{self.General.start_count:04d}.jpg')
+                self.ir.return_control()
+                self.General.ConnectState(0)
+                self.General.ConnectState(-1)
+                self.msgbox.msgbox.config(bg = 'yellow')
+                self.msgbox.MsgAppend('Shiny hunt completed!')
+                break
+            # Update the counter and plus one
+            self.General.CounterPlusOne()
+            # Game soft reset and re-enter
+            self.restart_game()
 
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct

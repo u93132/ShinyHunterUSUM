@@ -10,6 +10,7 @@ from tabBase import TabBase, HuntStopped
 class Lotto(TabBase):
     tabname   = 'Lotto'
     threshold = 0.05    # for image identification
+    logname   = 'Loto'
 
     def __init__(self, nb, General, msgbox, image):
 
@@ -78,55 +79,50 @@ class Lotto(TabBase):
                         return j
         return -1
 
-    def main_procedure(self):
+    def hunt(self):
         # Start Lotto Drawing
-        try:
-            while True:
-                # Trigger the event
-                res = self.findloto()
-                # Get current time
-                now = datetime.now()
-                current_time = now.strftime("%H:%M:%S")
-                # Check the draw result
-                if res == -1:
-                    try:
-                        # Test if 3DS is still alive
-                        self.General.test3DS()
-                    except:
-                        self.General.ConnectState(0)
-                        self.General.ConnectState(-1)
-                        self.msgbox.msgbox.config(bg = 'red')
-                        self.msgbox.MsgAppend(
-                            f'Loto {self.General.start_count:04d}'
-                            ' - N3DS crush?')
-                        break
-                    else:
-                        self.msgbox.MsgAppend(
-                            f'Loto {self.General.start_count:04d}'
-                            f' - {current_time} - Roto Asking' )
-                elif self.rotostate[res]:
-                    self.msgbox.MsgAppend(
-                        f'Loto {self.General.start_count:04d}'
-                        f' - {current_time} - Done' )
-                    self.ir.return_control()
-                    self.General.CounterPlusOne()
+        while True:
+            # Trigger the event
+            res = self.findloto()
+            # Get current time
+            now = datetime.now()
+            current_time = now.strftime("%H:%M:%S")
+            # Check the draw result
+            if res == -1:
+                try:
+                    # Test if 3DS is still alive
+                    self.General.test3DS()
+                except:
                     self.General.ConnectState(0)
                     self.General.ConnectState(-1)
-                    self.msgbox.msgbox.config(bg = 'lime')
-                    self.msgbox.MsgAppend('Lotto draw completed!')
+                    self.msgbox.msgbox.config(bg = 'red')
+                    self.msgbox.MsgAppend(
+                        f'Loto {self.General.start_count:04d}'
+                        ' - N3DS crush?')
                     break
                 else:
                     self.msgbox.MsgAppend(
                         f'Loto {self.General.start_count:04d}'
-                        f' - {current_time} - Roto {self.namelist[res]}' )
-                # Update the counter and plus one
+                        f' - {current_time} - Roto Asking' )
+            elif self.rotostate[res]:
+                self.msgbox.MsgAppend(
+                    f'Loto {self.General.start_count:04d}'
+                    f' - {current_time} - Done' )
+                self.ir.return_control()
                 self.General.CounterPlusOne()
-                # Game soft reset and re-enter
-                self.restart_game()
-        except HuntStopped:
-            # User pressed disconnect: finish the handover and unlock
-            self.General.ConnectState(-1)
-            self.ir.return_control()
+                self.General.ConnectState(0)
+                self.General.ConnectState(-1)
+                self.msgbox.msgbox.config(bg = 'lime')
+                self.msgbox.MsgAppend('Lotto draw completed!')
+                break
+            else:
+                self.msgbox.MsgAppend(
+                    f'Loto {self.General.start_count:04d}'
+                    f' - {current_time} - Roto {self.namelist[res]}' )
+            # Update the counter and plus one
+            self.General.CounterPlusOne()
+            # Game soft reset and re-enter
+            self.restart_game()
 
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct

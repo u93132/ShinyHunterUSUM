@@ -251,7 +251,10 @@ class ShinyHunterUSUM(tk.Tk):
                                         name='main-procedure', daemon=True)
             self.TID.start()
         else:
-            self.ir.return_control()
+            try:
+                self.ir.return_control()
+            except OSError:
+                pass   # dead socket: the 3DS side already has control
             self.General.ConnectState(0)
             self.msgbox.MsgAppend('Stopping...')
 
@@ -344,13 +347,14 @@ class ShinyHunterUSUM(tk.Tk):
             # Create a Input Redirection connection
             self.msgbox.MsgAppend('Step 4: Build input redirection server...')
             self.ir = LumaInputServer(self.General.clientIP)
-            # Wait until the first complete upper frame arrives (max 30 s);
-            # the tab threads crop self.image[1] right away
+            # Wait until both screens have a complete frame (max 30 s);
+            # the tab threads crop self.image[0]/[1] right away
             for i in range(300):
-                if self.image[1] is not None:
+                if (self.image[0] is not None and
+                    self.image[1] is not None):
                     break
                 time.sleep(0.1)
-            if self.image[1] is None:
+            if self.image[0] is None or self.image[1] is None:
                 self.General.ConnectState(0)
                 self.General.ConnectState(-1)
                 self.msgbox.MsgAppend('Error: No stream from 3DS')

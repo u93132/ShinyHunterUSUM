@@ -13,6 +13,7 @@ class HuntStopped(Exception):
 class TabBase:
     tabname   = ''     # subclass sets: which notebook tab this is
     threshold = 0.10   # subclass sets: image identification threshold
+    logname   = ''     # subclass sets: message box line prefix
 
     def __init__(self, nb, General, msgbox, image):
         self.nb      = nb
@@ -56,7 +57,7 @@ class TabBase:
         time.sleep(t)
 
     def wait_for(self, box, template, h_t, w_diff=0,
-                 button=None, thr=None, n=200):
+                 button=None, thr=None, n=200, screen=1, ts=0.05, debug=False):
         # Press `button` (if given) until `template` matches the crop
         # `box` of the top screen.
         # True:  matched
@@ -66,13 +67,15 @@ class TabBase:
             thr = self.threshold
         for i in range(n):
             self.check_stop()
-            img1 = self.image[1].crop(box)
+            img1 = self.image[screen].crop(box)
             res = matchtemplate(img2BW(img1), template, h_t, w_diff)
-            time.sleep(0.05)
             if res < thr:
                 return True
             if button is not None:
                 self.click(button)
+            time.sleep(ts)
+            if debug == True:
+                print(res)
         return False
 
     def restart_game(self):
@@ -101,3 +104,39 @@ class TabBase:
                 break
             else:
                 self.click(HIDButtons.START,0.2)
+
+    def main_procedure(self):
+        # Drive the tab's hunt() and recover from a died input socket
+        # (network drop / IP change): rebuild the socket and continue;
+        # three failures in a row without progress means the
+        # connection is really gone
+        deaths = 0
+        last_count = -1
+        while True:
+            try:
+                self.hunt()
+                return
+            except HuntStopped:
+                # User pressed disconnect: finish the handover, unlock
+                self.General.ConnectState(-1)
+                try:
+                    self.ir.return_control()
+                except OSError:
+                    pass   # dead socket: 3DS side already has control
+                return
+            except OSError:
+                if self.General.start_count != last_count:
+                    deaths = 0     # progress made since the last death
+                last_count = self.General.start_count
+                deaths += 1
+                if deaths > 3:
+                    self.General.ConnectState(0)
+                    self.General.ConnectState(-1)
+                    self.msgbox.msgbox.config(bg = 'red')
+                    self.msgbox.MsgAppend(
+                        f'{self.logname} {self.General.start_count:04d}'
+                        ' - 3DS connection lost')
+                    return
+                self.msgbox.MsgAppend('Error: Input socket died, '
+                                      f'rebuilding ({deaths}/3)...')
+                self.ir = LumaInputServer(self.General.clientIP)

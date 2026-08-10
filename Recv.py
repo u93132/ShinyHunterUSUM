@@ -10,6 +10,7 @@ from tabBase import TabBase, HuntStopped
 class Recv(TabBase):
     tabname   = 'Recv'
     threshold = 0.15    # for image identification
+    logname   = 'Receive'
 
     def __init__(self, nb, General, msgbox, image):
 
@@ -19,20 +20,31 @@ class Recv(TabBase):
 
         super().__init__(nb, General, msgbox, image)
         # Recv parameters
-        starter = img2BW(Image.open(self.picpath/'Starter.bmp'))
-        self.lab = [img2BW(Image.open(self.picpath/'Poipole.bmp')),
-                    img2BW(Image.open(self.picpath/'TypeNull.bmp')),
+        poipole  = img2BW(Image.open(self.picpath/'Poipole.bmp'))
+        typenull = img2BW(Image.open(self.picpath/'TypeNull.bmp'))
+        starter  = img2BW(Image.open(self.picpath/'Starter.bmp'))
+        # Dialogue name templates; poke 2 (Aether) skips the name wait
+        self.lab = [poipole, typenull, None,
                     starter, starter, starter]
-        self.nom = [None,None]
-        self.nom[0] = [136.37,  92.15, 219.39]
-        self.nom[1] = [142.00, 147.00, 150.00]
-        self.tar = [None,None]
-        self.tar[0] = [250.00, 250.00, 250.00]
-        self.tar[1] = [159.00, 154.00, 114.00]
-        self.cut = [None,None]
-        self.cut[0] = [196,100]
-        self.cut[1] = [164, 72]
+        # Summary page name templates
+        self.nam = [poipole, typenull, typenull,
+                    img2BW(Image.open(self.picpath/'Rowlet.bmp')),
+                    img2BW(Image.open(self.picpath/'Litten.bmp')),
+                    img2BW(Image.open(self.picpath/'Popplio.bmp'))]
 
+        # Shiny star check on the summary page: every target reads the
+        # same spot, so all six share one normal/shiny color pair
+        a        = [128.86, 242.03, 73.97]
+        b        = [174.08, 126.38, 40.03]
+        self.nom = [a]*6
+        self.tar = [b]*6
+
+        self.ty   = img2BW(Image.open(self.picpath/'ty.bmp'))
+        self.bb   = img2BW(Image.open(self.picpath/'bb.bmp'))
+        self.to   = img2BW(Image.open(self.picpath/'to.bmp'))
+        self.mo   = img2BW(Image.open(self.picpath/'mo.bmp'))
+        self.po   = img2BW(Image.open(self.picpath/'po.bmp'))
+        self.be   = img2BW(Image.open(self.picpath/'be.bmp'))
         self.ap   = img2BW(Image.open(self.picpath/'ap.bmp'))
         self.go   = img2BW(Image.open(self.picpath/'go.bmp'))
         self.do   = img2BW(Image.open(self.picpath/'do.bmp'))
@@ -40,28 +52,30 @@ class Recv(TabBase):
         self.yo   = img2BW(Image.open(self.picpath/'yo.bmp'))
         self.bu   = img2BW(Image.open(self.picpath/'bu.bmp'))
         self.bg   = img2BW(Image.open(self.picpath/'bg.bmp'))
+        self.Lv   = img2BW(Image.open(self.picpath/'Lv.bmp'))
         
         #########################################################################
         ################################ Objects  ###############################
         #########################################################################
 
-        self.recvbtn   = [None,None,None,None,None]
+        self.recvbtn   = [None,None,None,None,None,None]
         self.recvvar   = tk.IntVar()
         self.recvvar.set(0)
 
-        for i in range(2):
+        for i in range(3):
             self.recvbtn[i]=tk.Radiobutton(self.frame, width=8, anchor='w',
                                              variable=self.recvvar, value=i)
             self.recvbtn[i].grid(row=0, column=i, padx=3, pady=8, sticky='w')
         for i in range(3):
-            self.recvbtn[i+2]=tk.Radiobutton(self.frame, width=8, anchor='w',
-                                             variable=self.recvvar, value=i+2)
-            self.recvbtn[i+2].grid(row=1, column=i, padx=3, pady=8, sticky='w')
+            self.recvbtn[i+3]=tk.Radiobutton(self.frame, width=8, anchor='w',
+                                             variable=self.recvvar, value=i+3)
+            self.recvbtn[i+3].grid(row=1, column=i, padx=3, pady=2, sticky='w')
         self.recvbtn[0].config(text='Poipole')
-        self.recvbtn[1].config(text='Type: Null')
-        self.recvbtn[2].config(text='Rowlet')
-        self.recvbtn[3].config(text='Litten')
-        self.recvbtn[4].config(text='Popplio')
+        self.recvbtn[1].config(text='Type: Null\n(Poni)')
+        self.recvbtn[2].config(text='Type: Null\n(Aether)')
+        self.recvbtn[3].config(text='Rowlet')
+        self.recvbtn[4].config(text='Litten')
+        self.recvbtn[5].config(text='Popplio')
 
     #############################################################################
     ############################### Functions ###################################
@@ -70,10 +84,11 @@ class Recv(TabBase):
     def findrecv(self, poke):
         # Input
         # 0 is Poipole
-        # 1 is Type: Null
-        # 2 is Rowlet
-        # 3 is Litten
-        # 4 is Popplio
+        # 1 is Type: Null (Pony)
+        # 2 is Type: Null (Aether)
+        # 3 is Rowlet
+        # 4 is Litten
+        # 5 is Popplio
         # Return shiny or not
         # -1: Other exceptions
         #  0: Not shiny
@@ -83,136 +98,158 @@ class Recv(TabBase):
                 self.cpad(1.0, 0.0)
                 time.sleep(0.1)
                 self.cpad(0.0, 0.0)
-            if poke > 1:
+            if poke > 2:
                 self.cpad(0.0, 1.0)
                 time.sleep(0.1)
                 self.cpad(0.0, 0.0)
 
         # Talk until you find the pokemon's name on the top screen
-        if not self.wait_for((105,192,165,204), self.lab[poke], 12, 60-18,
-                             button=HIDButtons.A, n=1000):
-            return 1.0, self.image[1]
+        if poke != 2:
+            if not self.wait_for((105,192,165,204), self.lab[poke], 12, 60-18,
+                                 button=HIDButtons.A, n=1000):
+                return 1, self.image[1]
+        else:
+            for i in range(5):
+                self.click(HIDButtons.A)
+                time.sleep(0.05)
         img0 = self.image[1]
+
+        if poke == 0:
+            # Press B until the added to your party (ty) shows up
+            if not self.wait_for((262,193,302,207), self.ty, 14, 40-11,
+                             button=HIDButtons.B, n=200):
+                return 101, self.image[1]
         
-        if poke < 2:
-            for j in range(100):
-                self.check_stop()
-                # Talk until you find the pokemon's name on the top screen
-                img0 = self.image[1]
-                img1 = self.image[1].crop((170,192,210,204))
-                res = matchtemplate(img2BW(img1), self.lab[poke], 12, 40-18)
-                if res > self.threshold:
-                    #print('Step 2:' + str(res))
-                    self.ir.touch(240,20)
-                    self.ir.send(print_sent=False)
-                    time.sleep(0.1)
-                    self.ir.clear_touch()
-                    self.ir.send(print_sent=False)
-                else:
-                    #print('Step 2:' + str(res))
-                    time.sleep(0.2)
-                    img0 = self.image[1]
-                    img1 = self.image[1].crop((self.cut[poke][0],
-                                               self.cut[poke][1],
-                                               self.cut[poke][0]+4,
-                                               self.cut[poke][1]+4))
-                    res_tar = diffnorm(img2avRGB(img1),self.tar[poke])
-                    d       = diffnorm(self.nom[poke],self.tar[poke])
-                    res_tar = res_tar / d
-                    return  res_tar, img0
+        elif poke == 1:
+            # Press B until the end of the dialogue
+            if not self.wait_for((227,212,241,224), self.be, 14,
+                             button=HIDButtons.B, n=200):
+                return 201, self.image[1]
+
+        elif poke == 2:
+            # Press B until the added to your party (ty) shows up
+            if not self.wait_for((262,193,302,207), self.ty, 14, 40-11,
+                             button=HIDButtons.B, n=200):
+                return 201, self.image[1]
+
+            # Press A until the dialogue over
+            if not self.wait_for((156,212,177,224), self.po, 12, 0,
+                             button=HIDButtons.A, n=200):
+                return 202, self.image[1]
+            
         else:
             # Press B until the starter selection menu (ro) shows up
             if not self.wait_for((297,129,321,141), self.ro, 12,
                                  button=HIDButtons.B):
-                return 1.0, self.image[1]
+                return 301, self.image[1]
 
-            for i in range(poke-2):
-                self.cpad(0.0, -1.0)
-                time.sleep(0.05)
-                self.cpad(0.0, 0.0)
+            # Switch between the starters
+            for i in range(poke-3):
+                self.click(HIDButtons.DPADDOWN)
                 time.sleep(0.5)
                 
             # Press A until the confirm dialog (yo) shows up
             if not self.wait_for((48,192,70,204), self.yo, 12,
                                  button=HIDButtons.A):
-                return 1.0, self.image[1]
+                return 302, self.image[1]
 
             # Press B until the next dialog (bu) shows up
             if not self.wait_for((271,149,290,161), self.bu, 12,
                                  button=HIDButtons.B):
-                return 1.0, self.image[1]
+                return 303, self.image[1]
 
             # Press A until the handover screen (bg) shows up
             if not self.wait_for((187,54,227,121), self.bg, 67,
                                  button=HIDButtons.A):
-                return 1.0, self.image[1]
-                
-            self.cpad(-1.0, 1.0)
-            time.sleep(2.0)
-            self.cpad(0.0, 0.0)
+                return 304, self.image[1]
 
-            # Wait until 'appear' (ap) shows up on the dialog
-            if not self.wait_for((35,205,235,218), self.ap, 13, 200-24):
-                return 1.0, self.image[1]
-            t_app = time.time()
-            img0 = self.image[1]
-            # Shiny check: the time between 'go' and 'do' in the dialog
-            if not self.wait_for((13,203,33,215), self.go, 12):
-                return 1.0, img0
-            t_go = time.time()
-            if not self.wait_for((47,203,65,215), self.do, 12,
-                                 thr=self.threshold+0.05):
-                return 1.0, img0
-            t_use = int((time.time() - t_go)*1000)
-            return (5920-t_use)/600, img0
-                
-        return  1.0, img0
+        ### Check if the received pokemon is shiny
+        # Make sure clean up all the dialogue
+        for i in range(10):
+            self.click(HIDButtons.B)
+            time.sleep(0.05)
+            
+        # Wait until menu shows up, remember place the pokemon label at first
+        if not self.wait_for((27,211,38,222), self.bb, 11,
+                                button=HIDButtons.X, screen=0, ts=0.5):
+            return 2, self.image[0]
 
-    def main_procedure(self):
+        # Wait until 'Lv' shows up on the lower screen
+        if not self.wait_for((46,56,59,66), self.Lv, 10,
+                             button=HIDButtons.A, ts=0.5, screen=0):
+            return 3, self.image[0]
+
+        # Switch to the last pokemon in your team
+        time.sleep(0.2)
+        if self.wait_for((221,224,237,233), self.mo, 16, screen=0, ts=0.1, n=1):
+            self.click(HIDButtons.B)
+        if self.wait_for((227,222,238,233), self.to, 11, screen=0, ts=0.1, n=1):
+            self.click(HIDButtons.B)
+            time.sleep(0.2)
+            self.click(HIDButtons.B)
+        time.sleep(0.2)
+        if not self.wait_for((46,35,64,47), self.nam[poke], 12,
+                             button=HIDButtons.DPADUP, screen=0, ts=0.3, n=10):
+            return 4, self.image[0]
+
+        # Check the star on the summary page
+        time.sleep(0.3)
+        img0 = self.image[0]
+        img1 = img0.crop((59,184,67,192))
+        d       = diffnorm(self.nom[poke],self.tar[poke])
+        res_tar = diffnorm(img2avRGB(img1),self.tar[poke])
+        res_tar = res_tar / d
+        return res_tar, self.image[0]
+
+    def hunt(self):
         # Start Recving Pokemon
-        try:
-            while True:
-                # Trigger the event
-                res, img0 = self.findrecv(int(self.recvvar.get()))
-                self.ir.clear_everything()
-                self.ir.circle_pad_neutral()
-                # Get current time
-                now = datetime.now()
-                current_time = now.strftime("%H:%M:%S")
-                # Check the result
+        while True:
+            # Trigger the event
+            res, img0 = self.findrecv(int(self.recvvar.get()))
+            self.ir.clear_everything()
+            self.ir.circle_pad_neutral()
+            # Get current time
+            now = datetime.now()
+            current_time = now.strftime("%H:%M:%S")
+            if isinstance(res, int):
+                try:
+                    # Test if 3DS is still alive
+                    self.General.test3DS()
+                except:
+                    self.General.ConnectState(0)
+                    self.General.ConnectState(-1)
+                    self.msgbox.msgbox.config(bg = 'red')
+                    self.msgbox.MsgAppend(
+                        f'Receive {self.General.start_count:04d}'
+                        ' - N3DS crush?')
+                    break
+                else:
+                    combine_images(self.image).save(self.General.shotpath /
+                          f'Debug_Recv_'
+                          f'{self.General.start_count:04d}_'
+                          f'{res:03d}.jpg')
+                    self.msgbox.MsgAppend(
+                        f'Receive {self.General.start_count:04d}'
+                        f' - {current_time} - Error {res:03d}')
+            else:
+                # Check the result, res close to 0 means shiny
                 self.msgbox.MsgAppend(
                     f'Receive {self.General.start_count:04d}'
                     f' - {current_time} - {(1-res)*100:.2f}% Shiny')
-                # Update the counter and plus one
-                self.General.CounterPlusOne()
-                if res == 1:
-                    try:
-                        # Test if 3DS is still alive
-                        self.General.test3DS()
-                    except:
-                        self.General.ConnectState(0)
-                        self.General.ConnectState(-1)
-                        self.msgbox.msgbox.config(bg = 'red')
-                        self.msgbox.MsgAppend(
-                            f'Receive {self.General.start_count:04d}'
-                            ' - N3DS crush?')
-                        break
-                if ((int(self.recvvar.get()) == 0 and res < self.threshold) or
-                    (int(self.recvvar.get()) >= 1 and res < 0.4)):
-                    img0.save(self.General.shotpath /
-                              f'{self.General.start_count:04d}.jpg')
-                    self.ir.return_control()
-                    self.General.ConnectState(0)
-                    self.General.ConnectState(-1)
-                    self.msgbox.msgbox.config(bg = 'cyan')
-                    self.msgbox.MsgAppend('Receive pokemon completed!')
-                    break
-                # Game soft reset and re-enter
-                self.restart_game()
-        except HuntStopped:
-            # User pressed disconnect: finish the handover and unlock
-            self.General.ConnectState(-1)
-            self.ir.return_control()
+
+            if res < self.threshold:
+                img0.save(self.General.shotpath /
+                          f'Recv_{self.General.start_count:04d}.jpg')
+                self.ir.return_control()
+                self.General.ConnectState(0)
+                self.General.ConnectState(-1)
+                self.msgbox.msgbox.config(bg = 'cyan')
+                self.msgbox.MsgAppend('Receive pokemon completed!')
+                break
+            # Update the counter and plus one
+            self.General.CounterPlusOne()
+            # Game soft reset and re-enter
+            self.restart_game()
 
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct

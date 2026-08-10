@@ -85,3 +85,20 @@ def load_bitmaps(folder):
         else:
             bitmap[p.stem] = ImageTk.PhotoImage(Image.open(p))
     return bitmap
+
+# Combine images horizontally
+def combine_images(image_list):
+    # 1. Calculate the dimensions of the final canvas
+    total_width = sum(img.width for img in image_list)
+    max_height = max(img.height for img in image_list)
+    
+    # 2. Create a blank canvas (matching the mode of the first image)
+    combined_image = Image.new(image_list[0].mode, (total_width, max_height))
+    
+    # 3. Paste each image sequentially
+    current_x = 0
+    for img in image_list:
+        combined_image.paste(img, (current_x, 0))
+        current_x += img.width  # Shift right for the next image
+        
+    return combined_image
