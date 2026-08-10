@@ -106,38 +106,32 @@ class TabBase:
             else:
                 self.click(HIDButtons.START,0.2)
 
+    def give_up(self):
+        # Unrecoverable connection failure: red screen, unlock, stop
+        self.General.ConnectState(0)
+        self.General.ConnectState(-1)
+        self.msgbox.msgbox.config(bg = 'red')
+        self.msgbox.MsgAppend(
+            f'{self.logname} {self.General.start_count:04d}'
+            ' - 3DS connection lost')
+
     def main_procedure(self):
-        # Drive the tab's hunt() and recover from a died input socket
-        # (network drop / IP change): rebuild the socket and continue;
-        # three failures in a row without progress means the
-        # connection is really gone
-        deaths = 0
-        last_count = -1
-        while True:
+        # Drive the tab's hunt()
+        try:
+            self.hunt()
+        except HuntStopped:
+            # User pressed disconnect: finish the handover and unlock
+            self.General.ConnectState(-1)
             try:
-                self.hunt()
-                return
-            except HuntStopped:
-                # User pressed disconnect: finish the handover, unlock
-                self.General.ConnectState(-1)
-                try:
-                    self.ir.return_control()
-                except OSError:
-                    pass   # dead socket: 3DS side already has control
-                return
+                self.ir.return_control()
             except OSError:
-                if self.General.start_count != last_count:
-                    deaths = 0     # progress made since the last death
-                last_count = self.General.start_count
-                deaths += 1
-                if deaths > 3:
-                    self.General.ConnectState(0)
-                    self.General.ConnectState(-1)
-                    self.msgbox.msgbox.config(bg = 'red')
-                    self.msgbox.MsgAppend(
-                        f'{self.logname} {self.General.start_count:04d}'
-                        ' - 3DS connection lost')
-                    return
-                self.msgbox.MsgAppend('Error: Input socket died, '
-                                      f'rebuilding ({deaths}/3)...')
-                self.ir = LumaInputServer(self.General.clientIP)
+                pass   # dead socket: 3DS side already has control
+        except OSError:
+            # The input socket died (network drop / IP change):
+            # stop with the red screen
+            self.give_up()
+        except Exception:
+            # Whatever just happened, never leave the GUI locked;
+            # re-raise so the traceback still shows in debug builds
+            self.give_up()
+            raise

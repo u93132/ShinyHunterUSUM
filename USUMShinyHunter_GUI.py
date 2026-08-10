@@ -52,6 +52,8 @@ class ShinyHunterUSUM(tk.Tk):
         self.image = [None,None]
         self.frame_curr = -1
         self.index_prev = -1
+        self.TID  = None   # connect-pipeline thread
+        self.TIDm = None   # hunting thread
         
         ########################################################################
         ########################## GUI objects : Row 0 #########################
@@ -252,6 +254,11 @@ class ShinyHunterUSUM(tk.Tk):
                 pass   # dead socket: the 3DS side already has control
             self.General.ConnectState(0)
             self.msgbox.MsgAppend('Stopping...')
+            # If the worker threads already died (crash), nobody is
+            # left to run the handover - unlock the GUI ourselves
+            if not any(t is not None and t.is_alive()
+                       for t in (self.TID, self.TIDm)):
+                self.General.ConnectState(-1)
 
     def main_procedure(self):
             # Drop frames left from a previous run, so the wait below
