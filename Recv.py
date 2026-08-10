@@ -84,7 +84,7 @@ class Recv(TabBase):
     def findrecv(self, poke):
         # Input
         # 0 is Poipole
-        # 1 is Type: Null (Pony)
+        # 1 is Type: Null (Poni)
         # 2 is Type: Null (Aether)
         # 3 is Rowlet
         # 4 is Litten
