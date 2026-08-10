@@ -94,9 +94,9 @@ class Battle(TabBase):
                                 int(self.auravar.get()))])
 
     def findtime(self):
-        # Return the time between 'appear' and 'Go!'
-        # res:  the time between 'appear' and 'Go!'
-        # img0: the screenshot when the pokemon appears
+        # Return (result, screenshot when the pokemon appears)
+        # float result: the time between 'appear' and 'Go!' in msec
+        # int   result: 1 = never found them (error)
         if int(self.auravar.get()) == 0:
             # no aura pokemon
             n = 150
@@ -142,7 +142,7 @@ class Battle(TabBase):
                 try:
                     # Test if 3DS is still alive
                     self.General.test3DS()
-                except:
+                except OSError:
                     self.General.ConnectState(0)
                     self.General.ConnectState(-1)
                     self.msgbox.msgbox.config(bg = 'red')
@@ -179,13 +179,13 @@ class Battle(TabBase):
 
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct
-        self.General.data[1][i]['move']    = int(self.movevar.get())
-        self.General.data[1][i]['aura']    = int(self.auravar.get())
+        self.General.data[i].move = int(self.movevar.get())
+        self.General.data[i].aura = int(self.auravar.get())
 
     def data2GUI(self, i):
         # For each tab, setting data struct to GUI
-        self.movevar.set(int(self.General.data[1][i]['move']))
-        self.auravar.set(int(self.General.data[1][i]['aura']))
+        self.movevar.set(int(self.General.data[i].move))
+        self.auravar.set(int(self.General.data[i].aura))
         self.auraswitch()
 
 

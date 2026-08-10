@@ -59,7 +59,8 @@ class TabBase:
     def wait_for(self, box, template, h_t, w_diff=0,
                  button=None, thr=None, n=200, screen=1, ts=0.05, debug=False):
         # Press `button` (if given) until `template` matches the crop
-        # `box` of the top screen.
+        # `box` of screen 1 (top, default) or 0 (bottom), polling
+        # every `ts` seconds.
         # True:  matched
         # False: timeout
         # (a disconnect raises HuntStopped through check_stop)
@@ -74,7 +75,7 @@ class TabBase:
             if button is not None:
                 self.click(button)
             time.sleep(ts)
-            if debug == True:
+            if debug:
                 print(res)
         return False
 

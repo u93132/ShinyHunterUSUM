@@ -57,29 +57,19 @@ class InputBox:
 
 class msgBox:
     def __init__(self, frame, w, h):
-        self.message = ['']
+        self.message = []
         self.scroll = tk.Scrollbar(frame, orient='vertical')
         self.msgbox = tk.Text(frame, width = w, height = h,
                               yscrollcommand=self.scroll.set)
         self.scroll.config(command=self.msgbox.yview)
         self.msgbox.pack(padx=0, pady=10, side='left')
         self.scroll.pack(pady=10, side='left', fill='y')
-    
-    def MsgDisplay(self):
-        string = ''
-        self.msgbox.delete(1.0 , tk.END)
-        if self.message != ['']:
-            for i in range(len(self.message)):
-                string = string+self.message[i]+'\n'
-            self.msgbox.insert(tk.END,string)
-        self.msgbox.see('end')
 
-    def MsgAppend(self,s):
-        if self.message[0] == '':
-            self.message[0] = s
-        else:
-            self.message.append(s)
-        # Keep only 500 lines in the message box 
+    def MsgAppend(self, s):
+        self.message.append(s)
+        self.msgbox.insert(tk.END, s + '\n')
+        # Keep only the last 500 lines
         if len(self.message) > 500:
             self.message.pop(0)
-        self.MsgDisplay()
+            self.msgbox.delete('1.0', '2.0')
+        self.msgbox.see('end')

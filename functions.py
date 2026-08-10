@@ -29,7 +29,7 @@ def check(Ip):
         if len(Ip) > 1:
             try:
                 int(Ip[1])
-            except:
+            except ValueError:
                 raise Exception("Invalid IP")
 
 # Convert a 16-bit int (e.g. port number) to a little-endian hex string

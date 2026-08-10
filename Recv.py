@@ -89,10 +89,9 @@ class Recv(TabBase):
         # 3 is Rowlet
         # 4 is Litten
         # 5 is Popplio
-        # Return shiny or not
-        # -1: Other exceptions
-        #  0: Not shiny
-        #  1: Shiny            
+        # Return (result, screenshot)
+        # int result:   stage-numbered error code (1, 101-304, 2-4)
+        # float result: shiny score, close to 0 means shiny
         for i in range(3):
             if poke == 1:
                 self.cpad(1.0, 0.0)
@@ -215,7 +214,7 @@ class Recv(TabBase):
                 try:
                     # Test if 3DS is still alive
                     self.General.test3DS()
-                except:
+                except OSError:
                     self.General.ConnectState(0)
                     self.General.ConnectState(-1)
                     self.msgbox.msgbox.config(bg = 'red')
@@ -253,8 +252,8 @@ class Recv(TabBase):
 
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct
-        self.General.data[1][i]['recv']    = int(self.recvvar.get())
+        self.General.data[i].recv = int(self.recvvar.get())
 
     def data2GUI(self, i):
         # For each tab, setting data struct to GUI
-        self.recvvar.set(self.General.data[1][i]['recv'])
+        self.recvvar.set(self.General.data[i].recv)

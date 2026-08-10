@@ -1,10 +1,24 @@
 import tkinter as tk
 from tkinter import ttk
 import time, tempfile, socket, sys, msvcrt
+from dataclasses import dataclass, field
 from PIL import Image
 from datetime import datetime
 from functions import *
 from boxBase import *
+
+@dataclass(slots=True)
+class Setting:
+    # One settings slot; the file keys stay unchanged ('3dsip' on
+    # disk maps to the dsip attribute)
+    pcip:    str = ''
+    dsip:    str = ''
+    count:   int = 1
+    currtab: int = 0
+    move:    int = 0
+    aura:    int = 0
+    recv:    int = 0
+    loto:    list = field(default_factory=lambda: [1, 2])
 
 def lock_slot(folder, num):
     # Try to lock settings slot `num`. Returns the open lock handle,
@@ -154,8 +168,8 @@ class General:
         self.WriteSetting(self.data)
 
     def CounterPlusOne(self):
-        # Update the counter and plus one
-        self.data = self.LoadSetting()
+        # Update the counter and plus one; our slot is locked, so the
+        # in-memory data is authoritative - no need to reload the files
         self.start_count = self.start_count + 1
         self.Counter.Entry.config(state = 'normal')
         self.Counter.Entry.delete(0,'end')
@@ -171,43 +185,44 @@ class General:
         # i = 0: disable the connect/reset button, every thing recovered
         # i = 1: lock down everything
         
-        if i == 0:
-            self.ConnectButton.config(relief = 'raised')
-            self.ConnectButton.config(state = 'disabled')
-            self.IPDS.Entry.config(state = 'normal')
-            self.IPPC.Entry.config(state = 'normal')
-            self.Counter.Entry.config(state = 'normal')
-            self.setting.config(state = 'readonly')
-            # Write setting data struct
-            currset = self.settingGetInd()
-            self.GUI2data(currset)
-            self.WriteSetting(self.data) 
-            for j in range(len(self.TabButton)):
-                self.TabButton[j].config(state = 'normal')
-                self.nb.tab(j+1, state='normal')
-            # Close the UDP socket if this run ever opened one; early
-            # failures (e.g. the TCP step) have nothing to close yet
-            if self.udp_socket is not None:
-                try:
-                    self.udp_socket.shutdown(socket.SHUT_RDWR)
-                    self.udp_socket.close()
-                except OSError:
-                    pass  # already closed by the GUI thread
-                self.udp_socket = None
-        elif i == 1:
-            self.ConnectButton.config(relief = 'sunken')
-            self.ConnectButton.config(state = 'disabled')
-            self.ResetButton.config(state = 'disabled')
-            self.IPDS.Entry.config(state = 'disabled')
-            self.IPPC.Entry.config(state = 'disabled')
-            self.Counter.Entry.config(state = 'disabled')
-            self.setting.config(state = 'disabled')
-            for j in range(len(self.TabButton)):
-                self.TabButton[j].config(state = 'disabled')
-                self.nb.tab(j+1, state='disabled')
-        elif i == -1:
-            self.ConnectButton.config(state = 'normal')
-            self.ResetButton.config(state = 'normal')
+        match i:
+            case 0:
+                self.ConnectButton.config(relief = 'raised')
+                self.ConnectButton.config(state = 'disabled')
+                self.IPDS.Entry.config(state = 'normal')
+                self.IPPC.Entry.config(state = 'normal')
+                self.Counter.Entry.config(state = 'normal')
+                self.setting.config(state = 'readonly')
+                # Write setting data struct
+                currset = self.settingGetInd()
+                self.GUI2data(currset)
+                self.WriteSetting(self.data)
+                for j in range(len(self.TabButton)):
+                    self.TabButton[j].config(state = 'normal')
+                    self.nb.tab(j+1, state='normal')
+                # Close the UDP socket if this run ever opened one;
+                # early failures (the TCP step) have nothing to close
+                if self.udp_socket is not None:
+                    try:
+                        self.udp_socket.shutdown(socket.SHUT_RDWR)
+                        self.udp_socket.close()
+                    except OSError:
+                        pass  # already closed by the GUI thread
+                    self.udp_socket = None
+            case 1:
+                self.ConnectButton.config(relief = 'sunken')
+                self.ConnectButton.config(state = 'disabled')
+                self.ResetButton.config(state = 'disabled')
+                self.IPDS.Entry.config(state = 'disabled')
+                self.IPPC.Entry.config(state = 'disabled')
+                self.Counter.Entry.config(state = 'disabled')
+                self.setting.config(state = 'disabled')
+                for j in range(len(self.TabButton)):
+                    self.TabButton[j].config(state = 'disabled')
+                    self.nb.tab(j+1, state='disabled')
+            case -1:
+                self.ConnectButton.config(state = 'normal')
+                self.ResetButton.config(state = 'normal')
 
     def test3DS(self):
         # Test if 3DS is still alive
@@ -221,45 +236,43 @@ class General:
 
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct
-        self.data[1][i]['pcip']    = self.IPPC.Entry.get()
-        self.data[1][i]['3dsip']   = self.IPDS.Entry.get()
-        self.data[1][i]['count']   = int(self.Counter.Entry.get())
-        self.data[1][i]['currtab'] = int(self.Tab.get())
+        self.data[i].pcip    = self.IPPC.Entry.get()
+        self.data[i].dsip    = self.IPDS.Entry.get()
+        self.data[i].count   = int(self.Counter.Entry.get())
+        self.data[i].currtab = int(self.Tab.get())
 
     def data2GUI(self, i):
         # For each tab, setting data struct to GUI
         self.IPPC.Entry.delete(0,'end')
-        self.IPPC.Entry.insert(0,self.data[1][i]['pcip'])
+        self.IPPC.Entry.insert(0,self.data[i].pcip)
         self.IPDS.Entry.delete(0,'end')
-        self.IPDS.Entry.insert(0,self.data[1][i]['3dsip'])
+        self.IPDS.Entry.insert(0,self.data[i].dsip)
         self.Counter.Entry.delete(0,'end')
-        self.Counter.Entry.insert(0,str(self.data[1][i]['count']))
-        self.Tab.set(int(self.data[1][i]['currtab']))
+        self.Counter.Entry.insert(0,str(self.data[i].count))
+        self.Tab.set(int(self.data[i].currtab))
 
     def DefaultData(self):
         # Fresh data struct: 12 default slots
-        data = [0, []]
-        for i in range(12):
-            data[1].append({'pcip':'', '3dsip':'', 'count':1,
-                            'currtab':0, 'move':0, 'aura':0,
-                            'recv':0, 'loto':[1,2]})
-        return data
+        return [Setting() for i in range(12)]
 
     def ParseFields(self, lines, slot):
-        # Fetch key=value lines into one slot dict
+        # Fetch key=value lines into one Setting
         for line in lines:
             temp = line.split('=')
             if len(temp) < 2:
                 continue
-            if temp[0] == 'loto':
-                try:
-                    slot['loto'] = [int(k) for k in temp[1].split(',')]
-                except ValueError:
-                    slot['loto'] = []
-            elif temp[0] in ('pcip', '3dsip'):
-                slot[temp[0]] = temp[1]
-            elif temp[0] in slot:
-                slot[temp[0]] = int(temp[1])
+            match temp[0]:
+                case 'pcip':
+                    slot.pcip = temp[1]
+                case '3dsip':
+                    slot.dsip = temp[1]
+                case 'loto':
+                    try:
+                        slot.loto = [int(k) for k in temp[1].split(',')]
+                    except ValueError:
+                        slot.loto = []
+                case 'count' | 'currtab' | 'move' | 'aura' | 'recv':
+                    setattr(slot, temp[0], int(temp[1]))
 
     def LoadSetting(self):
         # Read every slot file that exists; missing slots stay default
@@ -268,27 +281,27 @@ class General:
             path = self.settingfolder / f'USUMShinyHunter-{i+1}.txt'
             if path.is_file():
                 with open(path, 'r') as f:
-                    self.ParseFields(f.read().split('\n'), data[1][i])
+                    self.ParseFields(f.read().split('\n'), data[i])
         return data
 
     def WriteSlotFile(self, i, d):
-        # Write one slot dict to its numbered file (i is 0-based)
+        # Write one Setting to its numbered file (i is 0-based)
         with open(self.settingfolder / f'USUMShinyHunter-{i+1}.txt',
                   'w') as f:
-            f.write(f"pcip={d['pcip']}\n")
-            f.write(f"3dsip={d['3dsip']}\n")
-            f.write(f"count={d['count']}\n")
-            f.write(f"currtab={d['currtab']}\n")
-            f.write(f"move={d['move']}\n")
-            f.write(f"aura={d['aura']}\n")
-            f.write(f"recv={d['recv']}\n")
-            f.write('loto=' + ','.join(str(k) for k in d['loto']) + '\n')
+            f.write(f'pcip={d.pcip}\n')
+            f.write(f'3dsip={d.dsip}\n')
+            f.write(f'count={d.count}\n')
+            f.write(f'currtab={d.currtab}\n')
+            f.write(f'move={d.move}\n')
+            f.write(f'aura={d.aura}\n')
+            f.write(f'recv={d.recv}\n')
+            f.write('loto=' + ','.join(str(k) for k in d.loto) + '\n')
 
     def WriteSetting(self, data):
         # Write the selected slot to its own file; the other slots
         # belong to their own files and are never touched here
         i = self.settingGetInd()
-        self.WriteSlotFile(i, data[1][i])
+        self.WriteSlotFile(i, data[i])
 
     def AcquireSlot(self):
         # Connect-time lock detection: own the selected slot's lock
@@ -340,7 +353,7 @@ class General:
                 if line.startswith('#'):
                     ind = ind + 1
                 elif 0 <= ind < 12:
-                    self.ParseFields([line], data[1][ind])
+                    self.ParseFields([line], data[ind])
             # The old file is kept untouched so an old version of the
             # program can still read it; slot files are created when
             # missing, and numbered files still in the old format
@@ -348,7 +361,7 @@ class General:
             for i in range(12):
                 path = self.settingfolder / f'USUMShinyHunter-{i+1}.txt'
                 if not path.is_file() or self.OldFormat(path):
-                    self.WriteSlotFile(i, data[1][i])
+                    self.WriteSlotFile(i, data[i])
         
         
     

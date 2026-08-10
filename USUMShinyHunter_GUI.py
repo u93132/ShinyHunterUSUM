@@ -1,4 +1,4 @@
-import sys, os, time, math, io, ctypes, threading, socket, signal
+import sys, os, time, io, threading, socket, signal
 from datetime import datetime
 
 from PIL import Image, ImageTk
@@ -110,7 +110,6 @@ class ShinyHunterUSUM(tk.Tk):
         ########################################################################
             
         # Message Box
-        self.message = ['']
         self.frame2 = tk.Frame(self)
         self.frame2.grid(row=2, column=0, padx=10, pady=0, sticky='ew')
         self.msgbox = msgBox(self.frame2, 35, 10)
@@ -196,54 +195,50 @@ class ShinyHunterUSUM(tk.Tk):
             lastlu = msg[1]
             index  = msg[3]
             # Analyze the packets
+            # lastlu encodes screen and position: 0/1 = lower/upper
+            # frame in progress, 16/17 = last packet of that screen
             try:
                 if index == 0:
                     self.frame_curr = frame
                     self.index_prev = 0
-                    if lastlu == 0:
-                        self.bytes[0] = msg[4:]
-                    elif lastlu == 1:
-                        self.bytes[1] = msg[4:]
+                    match lastlu:
+                        case 0 | 1:
+                            self.bytes[lastlu] = msg[4:]
                 else:
                     if ( (frame == self.frame_curr) and
                          (index == self.index_prev + 1) ):
                         self.index_prev = index
-                        if lastlu == 0:
-                            # Lower frame not last packet
-                            self.bytes[0] = self.bytes[0] + msg[4:]
-                        elif lastlu == 1:
-                            # Upper frame not last packet
-                            self.bytes[1] = self.bytes[1] + msg[4:]
-                        elif lastlu == 16:
-                            # Lower frame last packet
-                            self.bytes[0] = self.bytes[0] + msg[4:]
-                            self.image[0] = ( Image.open(
-                                                 io.BytesIO(self.bytes[0])).\
-                                                 rotate(90, expand=True) )
-                            if int(self.lowerVal.get()) == 1:
-                                img = ImageTk.PhotoImage(
-                                          self.image[0].resize((96,72)) )
-                                self.lowerlabel.config(image = img)
-                                self.lowerlabel.image = img  # keep a reference, or Tk loses the image
-                                self.upperlabel.config(image = self.bitmap['Upper'])
-                            else:
-                                self.lowerlabel.config(image = self.bitmap['Lower'])
-                        elif lastlu == 17:
-                            # Upper frame last packet
-                            self.bytes[1] = self.bytes[1] + msg[4:]
-                            self.image[1] = ( Image.open(
-                                                 io.BytesIO(self.bytes[1])).\
-                                                 rotate(90, expand=True) )
-                            if int(self.upperVal.get()) == 1:
-                                img = ImageTk.PhotoImage(
-                                          self.image[1].resize((120,72)) )
-                                self.upperlabel.config(image = img)
-                                self.upperlabel.image = img  # keep a reference, or Tk loses the image
-                                self.lowerlabel.config(image = self.bitmap['Lower'])
-                            else:
-                                self.upperlabel.config(image = self.bitmap['Upper'])
-            except:
+                        match lastlu:
+                            case 0 | 1:
+                                # not the last packet of this frame
+                                self.bytes[lastlu] += msg[4:]
+                            case 16 | 17:
+                                # last packet: assemble and show
+                                s = lastlu - 16
+                                self.bytes[s] += msg[4:]
+                                self.image[s] = (Image.open(
+                                    io.BytesIO(self.bytes[s]))
+                                    .rotate(90, expand=True))
+                                self.show_frame(s)
+            except Exception:
                 self.msgbox.MsgAppend('Error: Packet analyze error')
+
+    def show_frame(self, s):
+        # Update screen s (0 = lower, 1 = upper) when its checkbox is
+        # on; the other label falls back to its placeholder
+        val   = (self.lowerVal,   self.upperVal)[s]
+        label = (self.lowerlabel, self.upperlabel)[s]
+        other = (self.upperlabel, self.lowerlabel)[s]
+        size  = ((96, 72), (120, 72))[s]
+        name      = ('Lower', 'Upper')[s]
+        othername = ('Upper', 'Lower')[s]
+        if int(val.get()) == 1:
+            img = ImageTk.PhotoImage(self.image[s].resize(size))
+            label.config(image = img)
+            label.image = img  # keep a reference, or Tk loses the image
+            other.config(image = self.bitmap[othername])
+        else:
+            label.config(image = self.bitmap[name])
 
     def Connect3DS(self):
         if str(self.General.ConnectButton['relief']) == 'raised':
@@ -266,17 +261,17 @@ class ShinyHunterUSUM(tk.Tk):
             # Valid the string in entries
             try:
                 check(self.General.IPDS.Entry.get())
-            except:
+            except Exception:
                 self.msgbox.MsgAppend('Error: Invalid 3DS IP')
                 raise Exception('Invalid IP')
             try:
                 check(self.General.IPPC.Entry.get())
-            except:
+            except Exception:
                 self.msgbox.MsgAppend('Error: Invalid PC IP')
                 raise Exception('Invalid IP')
             try:
                 int(self.General.Counter.Entry.get())
-            except:
+            except ValueError:
                 self.msgbox.MsgAppend('Error: Not a number for the counter!')
                 raise Exception('Not a number!')
             # Connect-time lock detection on the selected slot
@@ -299,7 +294,7 @@ class ShinyHunterUSUM(tk.Tk):
                 self.tcp_socket = socket.create_connection(
                                     (self.General.clientIP, 8000) )
                 self.General.tcp_socket = self.tcp_socket
-            except:
+            except OSError:
                 self.General.ConnectState(0)
                 self.General.ConnectState(-1)
                 self.msgbox.MsgAppend('Cannot build connection')
@@ -336,7 +331,7 @@ class ShinyHunterUSUM(tk.Tk):
                 self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 self.udp_socket.bind((self.General.serverIP, self.General.serverport))
                 self.General.udp_socket = self.udp_socket
-            except:
+            except OSError:
                 self.General.ConnectState(0)
                 self.General.ConnectState(-1)
                 self.msgbox.MsgAppend('Error: Cannot build connection')

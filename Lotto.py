@@ -92,7 +92,7 @@ class Lotto(TabBase):
                 try:
                     # Test if 3DS is still alive
                     self.General.test3DS()
-                except:
+                except OSError:
                     self.General.ConnectState(0)
                     self.General.ConnectState(-1)
                     self.msgbox.msgbox.config(bg = 'red')
@@ -126,13 +126,13 @@ class Lotto(TabBase):
 
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct
-        self.General.data[1][i]['loto'] = (
+        self.General.data[i].loto = (
             [enum for enum,k in enumerate(self.rotostate) if k == 1] )
 
     def data2GUI(self, i):
         # For each tab, setting data struct to GUI
         for k in range(len(self.namelist)):
-            if k in self.General.data[1][i]['loto']:
+            if k in self.General.data[i].loto:
                 self.rotovar[k].set(1)
             else:
                 self.rotovar[k].set(0)
