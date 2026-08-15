@@ -43,6 +43,11 @@ def img2BW(img):
     # getdata() already yields pixels row by row
     return list(img.convert('L').rotate(90, expand=True).getdata())
 
+# Invert a grayscale template (img2BW output): white-on-black
+# becomes black-on-white, for matching inverted dialog styles
+def invertBW(bw):
+    return [255 - v for v in bw]
+
 # Image data compression to have better analyze performance
 # output: average RGB of a given block
 def img2avRGB(img):

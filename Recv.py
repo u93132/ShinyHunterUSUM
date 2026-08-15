@@ -23,28 +23,32 @@ class Recv(TabBase):
         poipole  = img2BW(Image.open(self.picpath/'Poipole.bmp'))
         typenull = img2BW(Image.open(self.picpath/'TypeNull.bmp'))
         starter  = img2BW(Image.open(self.picpath/'Starter.bmp'))
+        pikachu  = img2BW(Image.open(self.picpath/'Pikachu.bmp'))
         # Dialogue name templates; poke 2 (Aether) skips the name wait
         self.lab = [poipole, typenull, None,
-                    starter, starter, starter]
+                    starter, starter, starter,
+                    pikachu]
         # Summary page name templates
         self.nam = [poipole, typenull, typenull,
                     img2BW(Image.open(self.picpath/'Rowlet.bmp')),
                     img2BW(Image.open(self.picpath/'Litten.bmp')),
-                    img2BW(Image.open(self.picpath/'Popplio.bmp'))]
+                    img2BW(Image.open(self.picpath/'Popplio.bmp')),
+                    pikachu]
+
+        self.naminv = [invertBW(x) for x in self.nam]
 
         # Shiny star check on the summary page: every target reads the
         # same spot, so all six share one normal/shiny color pair
-        a        = [128.86, 242.03, 73.97]
-        b        = [174.08, 126.38, 40.03]
-        self.nom = [a]*6
-        self.tar = [b]*6
+        self.nom = [128.86, 242.03, 73.97]
+        self.tar = [174.08, 126.38, 40.03]
 
         self.ty   = img2BW(Image.open(self.picpath/'ty.bmp'))
-        self.bb   = img2BW(Image.open(self.picpath/'bb.bmp'))
         self.to   = img2BW(Image.open(self.picpath/'to.bmp'))
         self.mo   = img2BW(Image.open(self.picpath/'mo.bmp'))
-        self.po   = img2BW(Image.open(self.picpath/'po.bmp'))
+        self.no   = img2BW(Image.open(self.picpath/'no.bmp'))
+        #self.po   = img2BW(Image.open(self.picpath/'po.bmp'))
         self.be   = img2BW(Image.open(self.picpath/'be.bmp'))
+        self.be2  = img2BW(Image.open(self.picpath/'be2.bmp'))
         self.ap   = img2BW(Image.open(self.picpath/'ap.bmp'))
         self.go   = img2BW(Image.open(self.picpath/'go.bmp'))
         self.do   = img2BW(Image.open(self.picpath/'do.bmp'))
@@ -58,7 +62,7 @@ class Recv(TabBase):
         ################################ Objects  ###############################
         #########################################################################
 
-        self.recvbtn   = [None,None,None,None,None,None]
+        self.recvbtn   = [None,None,None,None,None,None,None]
         self.recvvar   = tk.IntVar()
         self.recvvar.set(0)
 
@@ -70,12 +74,17 @@ class Recv(TabBase):
             self.recvbtn[i+3]=tk.Radiobutton(self.frame, width=8, anchor='w',
                                              variable=self.recvvar, value=i+3)
             self.recvbtn[i+3].grid(row=1, column=i, padx=3, pady=2, sticky='w')
+        for i in range(1):
+            self.recvbtn[i+6]=tk.Radiobutton(self.frame, width=8, anchor='w',
+                                             variable=self.recvvar, value=i+6)
+            self.recvbtn[i+6].grid(row=2, column=i, padx=3, pady=2, sticky='w')
         self.recvbtn[0].config(text='Poipole')
         self.recvbtn[1].config(text='Type: Null\n(Poni)')
         self.recvbtn[2].config(text='Type: Null\n(Aether)')
         self.recvbtn[3].config(text='Rowlet')
         self.recvbtn[4].config(text='Litten')
         self.recvbtn[5].config(text='Popplio')
+        self.recvbtn[6].config(text='Pikachu')
 
     #############################################################################
     ############################### Functions ###################################
@@ -89,6 +98,7 @@ class Recv(TabBase):
         # 3 is Rowlet
         # 4 is Litten
         # 5 is Popplio
+        # 6 is Pikachu
         # Return (result, screenshot)
         # int result:   stage-numbered error code (1, 101-304, 2-4)
         # float result: shiny score, close to 0 means shiny
@@ -97,7 +107,7 @@ class Recv(TabBase):
                 self.cpad(1.0, 0.0)
                 time.sleep(0.1)
                 self.cpad(0.0, 0.0)
-            if poke > 2:
+            if poke > 2 and poke < 6:
                 self.cpad(0.0, 1.0)
                 time.sleep(0.1)
                 self.cpad(0.0, 0.0)
@@ -119,22 +129,32 @@ class Recv(TabBase):
                              button=HIDButtons.B, n=200):
                 return 101, self.image[1]
         
-        elif poke == 1:
+        elif poke == 1 :
             # Press B until the end of the dialogue
-            if not self.wait_for((227,212,241,224), self.be, 14,
+            if not self.wait_for((227,212,241,224), self.be, 12,
                              button=HIDButtons.B, n=200):
                 return 201, self.image[1]
 
         elif poke == 2:
             # Press B until the added to your party (ty) shows up
-            if not self.wait_for((262,193,302,207), self.ty, 14, 40-11,
+            if not self.wait_for((262,193,302,207), self.ty, 14, 40-11, 1,
                              button=HIDButtons.B, n=200):
                 return 201, self.image[1]
 
             # Press A until the dialogue over
-            if not self.wait_for((156,212,177,224), self.po, 12, 0,
+            if not self.wait_for((101,192,115,204), [self.be,self.be2], 12,
                              button=HIDButtons.A, n=200):
                 return 202, self.image[1]
+            for i in range(2): self.click(HIDButtons.B)
+            time.sleep(2.0)
+
+        elif poke == 6 :
+            # Press B until the end of the dialogue
+            if not self.wait_for((55,212,73,224), self.no, 12,
+                             button=HIDButtons.B, n=200):
+                return 201, self.image[1]
+            for i in range(2): self.click(HIDButtons.B)
+            time.sleep(2.0)
             
         else:
             # Press B until the starter selection menu (ro) shows up
@@ -174,30 +194,36 @@ class Recv(TabBase):
             return 2, self.image[0]
 
         # Wait until 'Lv' shows up on the lower screen
-        if not self.wait_for((46,56,59,66), self.Lv, 10,
+        if not self.wait_for((46,56,63,66), self.Lv, 10, 17-13, 1,
                              button=HIDButtons.A, ts=0.5, screen=0):
             return 3, self.image[0]
 
         # Switch to the last pokemon in your team
         time.sleep(0.2)
-        if self.wait_for((221,224,237,233), self.mo, 16, screen=0, ts=0.1, n=1):
-            self.click(HIDButtons.B)
-        if self.wait_for((227,222,238,233), self.to, 11, screen=0, ts=0.1, n=1):
-            self.click(HIDButtons.B)
-            time.sleep(0.2)
-            self.click(HIDButtons.B)
-        time.sleep(0.2)
-        if not self.wait_for((46,35,64,47), self.nam[poke], 12,
-                             button=HIDButtons.DPADUP, screen=0, ts=0.3, n=10):
-            return 4, self.image[0]
+        n = 3
+        for i in range(n):
+            if self.wait_for((227,222,238,233), self.to, 11, screen=0, ts=0.1, n=1):
+                self.click(HIDButtons.B)
+                time.sleep(0.2)
+            if self.wait_for((221,224,237,233), self.mo, 16, screen=0, ts=0.1, n=1):
+                self.click(HIDButtons.B)
+                time.sleep(0.2)
+            if not self.wait_for((46,35,68,47),
+                                 [self.nam[poke], self.naminv[poke]], 12, 22-18, 1,
+                                 button=HIDButtons.DPADUP, screen=0, ts=0.3, n=10):
+                if i == n-1:  return 4, self.image[0]
+            else:
+                break
 
         # Check the star on the summary page
         time.sleep(0.3)
         img0 = self.image[0]
         img1 = img0.crop((59,184,67,192))
-        d       = diffnorm(self.nom[poke],self.tar[poke])
-        res_tar = diffnorm(img2avRGB(img1),self.tar[poke])
-        res_tar = res_tar / d
+        img2 = img0.crop((45,186,53,194))
+        d       = diffnorm(self.nom,self.tar)
+        res_tar1= diffnorm(img2avRGB(img1),self.tar)
+        res_tar2= diffnorm(img2avRGB(img2),self.tar) # for Pokemon SM
+        res_tar = min(res_tar1,res_tar2) / d
         return res_tar, self.image[0]
 
     def hunt(self):

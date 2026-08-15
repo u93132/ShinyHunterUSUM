@@ -24,6 +24,7 @@ class TabBase:
         self.ir      = None    # pre assign the input redirection object
         self.picpath = resource_path(f'image0/{self.tabname}')
         self.mys     = img2BW(Image.open(self.picpath/'Mys.bmp'))
+        self.bb      = img2BW(Image.open(self.picpath/'bb.bmp'))
 
     ############################################################################
     ############################### Functions ##################################
@@ -56,20 +57,32 @@ class TabBase:
             self.ir.send(print_sent=False)
         time.sleep(t)
 
-    def wait_for(self, box, template, h_t, w_diff=0,
-                 button=None, thr=None, n=200, screen=1, ts=0.05, debug=False):
-        # Press `button` (if given) until `template` matches the crop
-        # `box` of screen 1 (top, default) or 0 (bottom), polling
-        # every `ts` seconds.
+    def wait_for(self, box, template, h_t, w_diff=0, v_diff=0,
+                 button=None, thr=None, n=200, screen=1, ts=0.05,
+                 debug=False):
+        # Press button (if given) until template matches the crop
+        # box of screen 1 (top, default) or 0 (bottom), polling
+        # every ts seconds. template is one img2BW list or a list
+        # of them; matching ANY counts. v_diff also tries the crop
+        # shifted up/down by up to that many pixels.
         # True:  matched
         # False: timeout
         # (a disconnect raises HuntStopped through check_stop)
         if thr is None:
             thr = self.threshold
+        # Normalize: a single template is a flat list of ints
+        if not isinstance(template[0], list):
+            template = [template]
+        x0, y0, x1, y1 = box
         for i in range(n):
             self.check_stop()
-            img1 = self.image[screen].crop(box)
-            res = matchtemplate(img2BW(img1), template, h_t, w_diff)
+            # one grayscale strip per vertical offset...
+            bws = [img2BW(self.image[screen].crop(
+                              (x0, y0 + d, x1, y1 + d)))
+                   for d in range(-v_diff, v_diff + 1)]
+            # ...then the best score over every offset x template pair
+            res = min(matchtemplate(bw, t, h_t, w_diff)
+                      for bw in bws for t in template)
             if res < thr:
                 return True
             if button is not None:
@@ -94,17 +107,24 @@ class TabBase:
             self.ir.unpress(HIDButtons.SELECT)
             self.ir.send(print_sent=False)
             time.sleep(0.1)
-        time.sleep(5.0)
+        # Leave Mystery Gift or Live Competition
+        for i in range(10): self.click(HIDButtons.B, 0.2)
+        time.sleep(1.0)
         # Enter the game
-        for i in range(30):
-            img1 = self.image[1].crop((160,183,190,195))
-            res = matchtemplate(img2BW(img1), self.mys, 12, 30-23)
-            if res < self.threshold:
-                self.click(HIDButtons.A)
-                time.sleep(5.0)
-                break
-            else:
-                self.click(HIDButtons.START,0.2)
+        self.wait_for((160,183,190,195), self.mys, 12, 30-23, 1,
+                      button=HIDButtons.START, n=30, ts=0.2)
+        for i in range(2): self.click(HIDButtons.A)
+        time.sleep(5.0)
+            
+##        for i in range(30):
+##            img1 = self.image[1].crop((160,183,190,195))
+##            res = matchtemplate(img2BW(img1), self.mys, 12, 30-23)
+##            if res < self.threshold:
+##                self.click(HIDButtons.A)
+##                time.sleep(5.0)
+##                break
+##            else:
+##                self.click(HIDButtons.START,0.2)
 
     def give_up(self):
         # Unrecoverable connection failure: red screen, unlock, stop
