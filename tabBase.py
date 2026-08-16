@@ -86,7 +86,14 @@ class TabBase:
             if res < thr:
                 return True
             if button is not None:
-                self.click(button)
+                if isinstance(button, tuple):
+                    self.ir.touch(button[0], button[1])
+                    self.ir.send(print_sent=False)
+                    time.sleep(0.1)          # hold, then release
+                    self.ir.clear_touch()
+                    self.ir.send(print_sent=False)
+                else:
+                    self.click(button)
             time.sleep(ts)
             if debug:
                 print(res)

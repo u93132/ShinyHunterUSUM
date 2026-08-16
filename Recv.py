@@ -24,8 +24,8 @@ class Recv(TabBase):
         typenull = img2BW(Image.open(self.picpath/'TypeNull.bmp'))
         starter  = img2BW(Image.open(self.picpath/'Starter.bmp'))
         pikachu  = img2BW(Image.open(self.picpath/'Pikachu.bmp'))
-        # Dialogue name templates; poke 2 (Aether) skips the name wait
-        self.lab = [poipole, typenull, None,
+        # Dialogue name templates (Aether shares the Type: Null one)
+        self.lab = [poipole, typenull, typenull,
                     starter, starter, starter,
                     pikachu]
         # Summary page name templates
@@ -42,6 +42,27 @@ class Recv(TabBase):
         self.nom = [128.86, 242.03, 73.97]
         self.tar = [174.08, 126.38, 40.03]
 
+        # Boost mode: the original in-scene check spots and colors
+        # (Poipole / Type: Null; Aether shares the Poni values)
+        tn_cut = [177, 129]
+        tn_nom = [143.22, 146.74, 151.71]
+        tn_tar = [158.10, 145.65, 119.19]
+        self.cut  = [[196, 100], tn_cut, tn_cut,
+                     [210, 124],
+                     [192, 106],
+                     [204, 127],
+                     None]
+        self.nomb = [[136.37,  92.15, 219.39], tn_nom, tn_nom,
+                     [233.61, 190.17, 147.13],
+                     [ 79.44,  95.04, 106.47],
+                     [189.81, 240.05, 244.52],
+                     None]
+        self.tarb = [[250.00, 250.00, 250.00], tn_tar, tn_tar,
+                     [132.46, 193.54, 165.05],
+                     [227.95, 220.50, 215.24],
+                     [184.07, 167.99, 172.58],
+                     None]
+        
         self.ty   = img2BW(Image.open(self.picpath/'ty.bmp'))
         self.to   = img2BW(Image.open(self.picpath/'to.bmp'))
         self.mo   = img2BW(Image.open(self.picpath/'mo.bmp'))
@@ -77,18 +98,37 @@ class Recv(TabBase):
         for i in range(1):
             self.recvbtn[i+6]=tk.Radiobutton(self.frame, width=8, anchor='w',
                                              variable=self.recvvar, value=i+6)
-            self.recvbtn[i+6].grid(row=2, column=i, padx=3, pady=2, sticky='w')
+            self.recvbtn[i+6].grid(row=2, column=i, padx=3, pady=8, sticky='w')
         self.recvbtn[0].config(text='Poipole')
-        self.recvbtn[1].config(text='Type: Null\n(Poni)')
-        self.recvbtn[2].config(text='Type: Null\n(Aether)')
+        self.recvbtn[1].config(text='TN-Poni')
+        self.recvbtn[2].config(text='TN-Aether')
         self.recvbtn[3].config(text='Rowlet')
         self.recvbtn[4].config(text='Litten')
         self.recvbtn[5].config(text='Popplio')
         self.recvbtn[6].config(text='Pikachu')
+        # Boost mode: use the original in-scene shiny check
+        self.boostvar = tk.IntVar()
+        self.boostbtn = tk.Checkbutton(self.frame, width=8, anchor='w',
+                                       variable=self.boostvar,
+                                       text='Boost',
+                                       command=self.boostswitch)
+        self.boostbtn.grid(row=2, column=2, padx=3, pady=2, sticky='w')
 
     #############################################################################
     ############################### Functions ###################################
     #############################################################################
+
+    def boostswitch(self):
+        # Boost mode only supports the first-row targets: lock the
+        # other rows out and pull the selection back if needed
+        if int(self.boostvar.get()) == 1:
+            if int(self.recvvar.get()) > 5:
+                self.recvvar.set(0)
+            for btn in self.recvbtn[6:]:
+                btn.config(state = 'disabled')
+        else:
+            for btn in self.recvbtn[6:]:
+                btn.config(state = 'normal')
 
     def findrecv(self, poke):
         # Input
@@ -99,29 +139,68 @@ class Recv(TabBase):
         # 4 is Litten
         # 5 is Popplio
         # 6 is Pikachu
+        # +100: Boost mode - the original in-scene shiny check
         # Return (result, screenshot)
-        # int result:   stage-numbered error code (1, 101-304, 2-4)
+        # int result:   stage-numbered error code
+        #               (1, 101-304, 601-603 in Boost mode, 2-4)
         # float result: shiny score, close to 0 means shiny
+        boost = poke >= 100
+        poke  = poke % 100
         for i in range(3):
             if poke == 1:
                 self.cpad(1.0, 0.0)
                 time.sleep(0.1)
                 self.cpad(0.0, 0.0)
-            if poke > 2 and poke < 6:
-                self.cpad(0.0, 1.0)
+            if 2 < poke < 6:
+                self.cpad(-1.0, 0.0)
                 time.sleep(0.1)
                 self.cpad(0.0, 0.0)
 
         # Talk until you find the pokemon's name on the top screen
-        if poke != 2:
-            if not self.wait_for((105,192,165,204), self.lab[poke], 12, 60-18,
-                                 button=HIDButtons.A, n=1000):
-                return 1, self.image[1]
-        else:
-            for i in range(5):
-                self.click(HIDButtons.A)
-                time.sleep(0.05)
+        if not self.wait_for((105,192,165,204), self.lab[poke], 12, 60-18,
+                             button=HIDButtons.A, n=1000):
+            return 1, self.image[1]
         img0 = self.image[1]
+
+        if boost:
+            if poke < 3:
+                # Original in-scene check: talk through the dialogue, then
+                # read the color patch at the receive scene.
+                if not self.wait_for((170,192,210,204), self.nam[poke], 12, 40-18,
+                                     button=(240,20), n=100, screen=1, ts=0.1):
+                    return 603, self.image[1]
+            if 2 < poke < 6:
+                # Press B until the starter selection menu (ro) shows up
+                if not self.wait_for((297,129,321,141), self.ro, 12,
+                                     button=HIDButtons.B):
+                    return 601, self.image[1]
+
+                # Switch between the starters
+                for i in range(poke-3):
+                    self.click(HIDButtons.DPADDOWN)
+                    time.sleep(0.5)
+                    
+                # Press A until the confirm dialog (yo) shows up
+                if not self.wait_for((48,192,70,204), self.yo, 12,
+                                     button=HIDButtons.A):
+                    return 602, self.image[1]
+
+                # Original in-scene check: talk through the dialogue, then
+                # read the color patch at the receive scene.
+                if not self.wait_for((170,192,210,204), self.nam[poke], 12, 40-18,
+                                     button=(240,20), n=100, screen=1, ts=0.1):
+                    return 603, self.image[1]
+
+            time.sleep(0.2)
+            img0 = self.image[1]
+            img1 = img0.crop((self.cut[poke][0],
+                              self.cut[poke][1],
+                              self.cut[poke][0]+3,
+                              self.cut[poke][1]+3))
+            res_tar = diffnorm(img2avRGB(img1), self.tarb[poke])
+            d       = diffnorm(self.nomb[poke], self.tarb[poke])
+            return res_tar / d, img0
+            
 
         if poke == 0:
             # Press B until the added to your party (ty) shows up
@@ -229,8 +308,10 @@ class Recv(TabBase):
     def hunt(self):
         # Start Recving Pokemon
         while True:
-            # Trigger the event
-            res, img0 = self.findrecv(int(self.recvvar.get()))
+            # Trigger the event; Boost mode is encoded as +100
+            base  = int(self.recvvar.get())
+            boost = int(self.boostvar.get())
+            res, img0 = self.findrecv(base + 100*boost)
             self.ir.clear_everything()
             self.ir.circle_pad_neutral()
             # Get current time
@@ -262,7 +343,9 @@ class Recv(TabBase):
                     f'Receive {self.General.start_count:04d}'
                     f' - {current_time} - {(1-res)*100:.2f}% Shiny')
 
-            if res < self.threshold:
+            # Boost mode uses one unified shiny threshold
+            limit = 0.4 if boost else self.threshold
+            if res < limit:
                 img0.save(self.General.shotpath /
                           f'Recv_{self.General.start_count:04d}.jpg')
                 self.ir.return_control()
@@ -278,8 +361,13 @@ class Recv(TabBase):
 
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct
-        self.General.data[i].recv = int(self.recvvar.get())
+        # (Boost mode is encoded as +100 on top of the target index)
+        self.General.data[i].recv = (int(self.recvvar.get())
+                                     + 100*int(self.boostvar.get()))
 
     def data2GUI(self, i):
         # For each tab, setting data struct to GUI
-        self.recvvar.set(self.General.data[i].recv)
+        v = int(self.General.data[i].recv)
+        self.recvvar.set(v % 100)
+        self.boostvar.set(v // 100)
+        self.boostswitch()
