@@ -141,9 +141,18 @@ class Recv(TabBase):
         # 6 is Pikachu
         # +100: Boost mode - the original in-scene shiny check
         # Return (result, screenshot)
-        # int result:   stage-numbered error code
-        #               (1, 101-304, 601-603 in Boost mode, 2-4)
         # float result: shiny score, close to 0 means shiny
+        # int result:   error code, hundreds digit = stage
+        #   101      dialogue name never showed up
+        #   2TS      nav_dialogue, T = target, S = step
+        #     201      Poipole - 'ty' (added to party)
+        #     211      Poni    - 'be' (end of dialogue)
+        #     221/222  Aether  - 'ty' / 'be,be2'
+        #     261      Pikachu - 'no' (end of dialogue)
+        #   301/302  starter select: 'ro' menu / 'yo' confirm
+        #   311/312  starter dialogs: 'bu' / 'bg'
+        #   501-503  summary check: menu / 'Lv' / party name
+        #   601-603  Boost: 'ro' / 'yo' / in-scene name
         boost = poke >= 100
         poke  = poke % 100
         for i in range(3):
@@ -159,109 +168,107 @@ class Recv(TabBase):
         # Talk until you find the pokemon's name on the top screen
         if not self.wait_for((105,192,165,204), self.lab[poke], 12, 60-18,
                              button=HIDButtons.A, n=1000):
-            return 1, self.image[1]
-        img0 = self.image[1]
+            return 101, self.image[1]
 
         if boost:
-            if poke < 3:
-                # Original in-scene check: talk through the dialogue, then
-                # read the color patch at the receive scene.
-                if not self.wait_for((170,192,210,204), self.nam[poke], 12, 40-18,
-                                     button=(240,20), n=100, screen=1, ts=0.1):
-                    return 603, self.image[1]
             if 2 < poke < 6:
-                # Press B until the starter selection menu (ro) shows up
-                if not self.wait_for((297,129,321,141), self.ro, 12,
-                                     button=HIDButtons.B):
-                    return 601, self.image[1]
+                err = self.select_starter(poke, 601)
+                if err is not None:
+                    return err, self.image[1]
+            return self.check_inscene(poke)
 
-                # Switch between the starters
-                for i in range(poke-3):
-                    self.click(HIDButtons.DPADDOWN)
-                    time.sleep(0.5)
-                    
-                # Press A until the confirm dialog (yo) shows up
-                if not self.wait_for((48,192,70,204), self.yo, 12,
-                                     button=HIDButtons.A):
-                    return 602, self.image[1]
+        err = self.nav_dialogue(poke)
+        if err is not None:
+            return err, self.image[1]
+        return self.check_summary(poke)
 
-                # Original in-scene check: talk through the dialogue, then
-                # read the color patch at the receive scene.
-                if not self.wait_for((170,192,210,204), self.nam[poke], 12, 40-18,
-                                     button=(240,20), n=100, screen=1, ts=0.1):
-                    return 603, self.image[1]
+    def select_starter(self, poke, err):
+        # ro menu -> move down to the chosen starter -> confirm (yo)
+        # Returns `err` / `err+1` on timeout, None when done
+        if not self.wait_for((297,129,321,141), self.ro, 12,
+                             button=HIDButtons.B):
+            return err
+        # Switch between the starters
+        for i in range(poke-3):
+            self.click(HIDButtons.DPADDOWN)
+            time.sleep(0.5)
+        # Press A until the confirm dialog (yo) shows up
+        if not self.wait_for((48,192,70,204), self.yo, 12,
+                             button=HIDButtons.A):
+            return err + 1
+        return None
 
-            time.sleep(0.2)
-            img0 = self.image[1]
-            img1 = img0.crop((self.cut[poke][0],
-                              self.cut[poke][1],
-                              self.cut[poke][0]+3,
-                              self.cut[poke][1]+3))
-            res_tar = diffnorm(img2avRGB(img1), self.tarb[poke])
-            d       = diffnorm(self.nomb[poke], self.tarb[poke])
-            return res_tar / d, img0
-            
+    def check_inscene(self, poke):
+        # Boost mode: tap through the dialogue until the name shows
+        # up, then read the calibrated color patch in the scene
+        if not self.wait_for((170,192,210,204), self.nam[poke], 12, 40-18,
+                             button=(240,20), n=100, screen=1, ts=0.1):
+            return 603, self.image[1]
+        time.sleep(0.2)
+        img0 = self.image[1]
+        img1 = img0.crop((self.cut[poke][0],
+                          self.cut[poke][1],
+                          self.cut[poke][0]+3,
+                          self.cut[poke][1]+3))
+        res_tar = diffnorm(img2avRGB(img1), self.tarb[poke])
+        d       = diffnorm(self.nomb[poke], self.tarb[poke])
+        return res_tar / d, img0
 
+    def nav_dialogue(self, poke):
+        # Walk the per-target dialogue after the name showed up
+        # Returns an error code, None once the pokemon is received
         if poke == 0:
             # Press B until the added to your party (ty) shows up
             if not self.wait_for((262,193,302,207), self.ty, 14, 40-11,
                              button=HIDButtons.B, n=200):
-                return 101, self.image[1]
-        
-        elif poke == 1 :
+                return 201
+
+        elif poke == 1:
             # Press B until the end of the dialogue
             if not self.wait_for((227,212,241,224), self.be, 12,
                              button=HIDButtons.B, n=200):
-                return 201, self.image[1]
+                return 211
 
         elif poke == 2:
             # Press B until the added to your party (ty) shows up
             if not self.wait_for((262,193,302,207), self.ty, 14, 40-11, 1,
                              button=HIDButtons.B, n=200):
-                return 201, self.image[1]
+                return 221
 
             # Press A until the dialogue over
             if not self.wait_for((101,192,115,204), [self.be,self.be2], 12,
                              button=HIDButtons.A, n=200):
-                return 202, self.image[1]
+                return 222
             for i in range(2): self.click(HIDButtons.B)
             time.sleep(2.0)
 
-        elif poke == 6 :
+        elif poke == 6:
             # Press B until the end of the dialogue
             if not self.wait_for((55,212,73,224), self.no, 12,
                              button=HIDButtons.B, n=200):
-                return 201, self.image[1]
+                return 261
             for i in range(2): self.click(HIDButtons.B)
             time.sleep(2.0)
-            
-        else:
-            # Press B until the starter selection menu (ro) shows up
-            if not self.wait_for((297,129,321,141), self.ro, 12,
-                                 button=HIDButtons.B):
-                return 301, self.image[1]
 
-            # Switch between the starters
-            for i in range(poke-3):
-                self.click(HIDButtons.DPADDOWN)
-                time.sleep(0.5)
-                
-            # Press A until the confirm dialog (yo) shows up
-            if not self.wait_for((48,192,70,204), self.yo, 12,
-                                 button=HIDButtons.A):
-                return 302, self.image[1]
+        else:
+            err = self.select_starter(poke, 301)
+            if err is not None:
+                return err
 
             # Press B until the next dialog (bu) shows up
             if not self.wait_for((271,149,290,161), self.bu, 12,
                                  button=HIDButtons.B):
-                return 303, self.image[1]
+                return 311
 
             # Press A until the handover screen (bg) shows up
             if not self.wait_for((187,54,227,121), self.bg, 67,
                                  button=HIDButtons.A):
-                return 304, self.image[1]
+                return 312
+        return None
 
-        ### Check if the received pokemon is shiny
+    def check_summary(self, poke):
+        # Open the menu, walk to the received pokemon, and read the
+        # shiny star on its summary page
         # Make sure clean up all the dialogue
         for i in range(10):
             self.click(HIDButtons.B)
@@ -270,12 +277,12 @@ class Recv(TabBase):
         # Wait until menu shows up, remember place the pokemon label at first
         if not self.wait_for((27,211,38,222), self.bb, 11,
                                 button=HIDButtons.X, screen=0, ts=0.5):
-            return 2, self.image[0]
+            return 501, self.image[0]
 
         # Wait until 'Lv' shows up on the lower screen
         if not self.wait_for((46,56,63,66), self.Lv, 10, 17-13, 1,
                              button=HIDButtons.A, ts=0.5, screen=0):
-            return 3, self.image[0]
+            return 502, self.image[0]
 
         # Switch to the last pokemon in your team
         time.sleep(0.2)
@@ -290,7 +297,7 @@ class Recv(TabBase):
             if not self.wait_for((46,35,68,47),
                                  [self.nam[poke], self.naminv[poke]], 12, 22-18, 1,
                                  button=HIDButtons.DPADUP, screen=0, ts=0.3, n=10):
-                if i == n-1:  return 4, self.image[0]
+                if i == n-1:  return 503, self.image[0]
             else:
                 break
 

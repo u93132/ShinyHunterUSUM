@@ -96,7 +96,7 @@ class Battle(TabBase):
     def findtime(self):
         # Return (result, screenshot when the pokemon appears)
         # float result: the time between 'appear' and 'Go!' in msec
-        # int   result: 1 = never found them (error)
+        # int   result: 101 = they never appeared (error)
         if int(self.auravar.get()) == 0:
             # no aura pokemon
             n = 150
@@ -127,7 +127,7 @@ class Battle(TabBase):
                         t_use = (t_go - t_app)*1000
                         return t_use, img0
                     time.sleep(0.1)
-        return 1, img0
+        return 101, img0
 
     def hunt(self):
         # Start Shiny Hunting
