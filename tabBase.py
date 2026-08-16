@@ -23,8 +23,12 @@ class TabBase:
         self.image   = image   # the background updating screen
         self.ir      = None    # pre assign the input redirection object
         self.picpath = resource_path(f'image0/{self.tabname}')
-        self.mys     = img2BW(Image.open(self.picpath/'Mys.bmp'))
+        mysimg       = Image.open(self.picpath/'Mys.bmp')
+        width,height = mysimg.size
+        self.mys     = [img2BW(mysimg.crop((0, 1, width, height))),
+                        img2BW(mysimg.crop((0, 0, width, height - 1)))]
         self.bb      = img2BW(Image.open(self.picpath/'bb.bmp'))
+        self.gamestr = ['US/UM','S/M']
 
     ############################################################################
     ############################### Functions ##################################
@@ -121,21 +125,12 @@ class TabBase:
         # Leave Mystery Gift or Live Competition
         for i in range(10): self.click(HIDButtons.B, 0.2)
         time.sleep(1.0)
-        # Enter the game
-        self.wait_for((160,183,190,195), self.mys, 12, 30-23, 1,
-                      button=HIDButtons.START, n=30, ts=0.2)
+        # Enter the game, and check USUM/SM at the starting page
+        gametype = self.wait_for((164,184,187,195), self.mys, 11,
+                                 button=HIDButtons.START, n=30, ts=0.2)
         for i in range(2): self.click(HIDButtons.A)
         time.sleep(5.0)
-            
-##        for i in range(30):
-##            img1 = self.image[1].crop((160,183,190,195))
-##            res = matchtemplate(img2BW(img1), self.mys, 12, 30-23)
-##            if res < self.threshold:
-##                self.click(HIDButtons.A)
-##                time.sleep(5.0)
-##                break
-##            else:
-##                self.click(HIDButtons.START,0.2)
+        return gametype
 
     def give_up(self):
         # Unrecoverable connection failure: red screen, unlock, stop
@@ -147,9 +142,14 @@ class TabBase:
             ' - 3DS connection lost')
 
     def main_procedure(self):
+        # Game soft reset and re-enter
+        gametype = self.restart_game()
+        gamestr = self.gamestr[gametype-1]
+        self.msgbox.MsgAppend(
+            f'Pokemon {gamestr} detected')
         # Drive the tab's hunt()
         try:
-            self.hunt()
+            self.hunt(gametype)
         except HuntStopped:
             # User pressed disconnect: finish the handover and unlock
             self.General.ConnectState(-1)

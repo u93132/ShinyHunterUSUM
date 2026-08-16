@@ -112,15 +112,20 @@ class Battle(TabBase):
                 # Talk to the pokemon
                 self.click(HIDButtons.A)
             img0 = self.image[1]
-            img1 = self.image[1].crop((35,205,235,218))
-            res = matchtemplate(img2BW(img1), self.ap, 13, 200-24)
+            img1 = img0.crop((35,205,235,218))
+            img2 = img0.crop((35,198,235,211))
+            res = min(matchtemplate(img2BW(img1), self.ap, 13, 200-24),
+                      matchtemplate(img2BW(img2), self.ap, 13, 200-24))
             #print(res)
             if res < self.threshold:
                 t_app = time.time()
                 #print("Found app!")
                 for j in range(100):
-                    img2 = self.image[1].crop((13,203,33,215))
-                    res = matchtemplate(img2BW(img2), self.go, 12, 0)
+                    img3 = self.image[1]
+                    img4 = img3.crop((13,203,33,215))
+                    img5 = img3.crop((11,196,31,208))
+                    res = min(matchtemplate(img2BW(img4), self.go, 12, 0),
+                              matchtemplate(img2BW(img5), self.go, 12, 0))
                     if res < self.threshold:
                         t_go = time.time()
                         #print("Found go!")
@@ -129,7 +134,19 @@ class Battle(TabBase):
                     time.sleep(0.1)
         return 101, img0
 
-    def hunt(self):
+    def hunt(self, gametype=0):
+        # Check Pokemon game version and update self.chat
+        if gametype == 2:
+            self.chat = 2200
+            if not (int(self.movevar.get()) == 0 and
+                    int(self.auravar.get()) == 0):
+                self.General.ConnectState(0)
+                self.General.ConnectState(-1)
+                self.msgbox.msgbox.config(bg = 'red')
+                self.msgbox.MsgAppend(
+                    f'This function is not supported for S/M')
+        else:
+            self.auraswitch()
         # Start Shiny Hunting
         while True:
             # Check if it is shiny

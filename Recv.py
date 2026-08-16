@@ -312,7 +312,14 @@ class Recv(TabBase):
         res_tar = min(res_tar1,res_tar2) / d
         return res_tar, self.image[0]
 
-    def hunt(self):
+    def hunt(self, gametype=0):
+        # Check Pokemon game version
+        if gametype == 2 and int(self.recvvar.get()) != 2:
+            self.General.ConnectState(0)
+            self.General.ConnectState(-1)
+            self.msgbox.msgbox.config(bg = 'red')
+            self.msgbox.MsgAppend(
+                f'This function is not supported for S/M')
         # Start Recving Pokemon
         while True:
             # Trigger the event; Boost mode is encoded as +100

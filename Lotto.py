@@ -70,7 +70,14 @@ class Lotto(TabBase):
             return -1
         return hit - 1
 
-    def hunt(self):
+    def hunt(self, gametype=0):
+        # Check Pokemon game version
+        if gametype == 2:
+            self.General.ConnectState(0)
+            self.General.ConnectState(-1)
+            self.msgbox.msgbox.config(bg = 'red')
+            self.msgbox.MsgAppend(
+                f'This function is not supported for S/M')
         # Start Lotto Drawing
         while True:
             # Trigger the event
