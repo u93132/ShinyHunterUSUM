@@ -54,30 +54,21 @@ class Lotto(TabBase):
     def findloto(self):
         # Return which one that Roto gave you
         # -1:         Roto is asking questions or other exceptions
-        # other ints: the corresponing index in self.namelist
+        # other ints: the corresponding index in self.namelist
         # Ex: return 2 means the return is Roto Catch
         time.sleep(1.0)
-        for i in range(100):
-            self.check_stop()
-            # Tap the screen until you find "Roto" on the top screen
-            img1 = self.image[1].crop((144,192,170,204))
-            res = matchtemplate(img2BW(img1), self.img0, 12, 0)
-            if res > self.threshold:
-                self.ir.touch(240,60)
-                self.ir.send(print_sent=False)
-                time.sleep(0.1)
-                self.ir.clear_touch()
-                self.ir.send(print_sent=False)
-                time.sleep(0.1)
-            else:
-                # Wait 0.5 seconds until the line on the screen is completed
-                # Then check which one is it
-                time.sleep(0.5)
-                bw = img2BW(self.image[1].crop((175,192,199,204)))
-                for j, tmpl in enumerate(self.imglist):
-                    if matchtemplate(bw, tmpl, 12, 0) < self.threshold:
-                        return j
-        return -1
+        # Tap the screen until 'Roto' shows up on the top screen
+        if not self.wait_for((144,192,170,204), self.img0, 12,
+                             button=(240,60), n=100, ts=0.1):
+            return -1
+        # Wait until the line on the screen is completed, then
+        # check which one is it (retry while the text settles)
+        time.sleep(0.5)
+        hit = self.wait_for((175,192,199,204), self.imglist, 12,
+                            n=10, ts=0.5)
+        if not hit:
+            return -1
+        return hit - 1
 
     def hunt(self):
         # Start Lotto Drawing

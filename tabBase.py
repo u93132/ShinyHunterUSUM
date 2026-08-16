@@ -65,8 +65,10 @@ class TabBase:
         # every ts seconds. template is one img2BW list or a list
         # of them; matching ANY counts. v_diff also tries the crop
         # shifted up/down by up to that many pixels.
-        # True:  matched
-        # False: timeout
+        # matched: returns the 1-based number of the template that
+        #          hit (always 1 for a single template) - truthy
+        # timeout: returns 0 - falsy, so `if not wait_for(...)`
+        #          keeps reading naturally
         # (a disconnect raises HuntStopped through check_stop)
         if thr is None:
             thr = self.threshold
@@ -80,11 +82,13 @@ class TabBase:
             bws = [img2BW(self.image[screen].crop(
                               (x0, y0 + d, x1, y1 + d)))
                    for d in range(-v_diff, v_diff + 1)]
-            # ...then the best score over every offset x template pair
-            res = min(matchtemplate(bw, t, h_t, w_diff)
-                      for bw in bws for t in template)
+            # ...then the best score over every offset x template
+            # pair, remembering which template it came from
+            res, hit = min(
+                (matchtemplate(bw, t, h_t, w_diff), j)
+                for bw in bws for j, t in enumerate(template))
             if res < thr:
-                return True
+                return hit + 1
             if button is not None:
                 if isinstance(button, tuple):
                     self.ir.touch(button[0], button[1])
@@ -97,7 +101,7 @@ class TabBase:
             time.sleep(ts)
             if debug:
                 print(res)
-        return False
+        return 0
 
     def restart_game(self):
         self.check_stop()
