@@ -210,6 +210,14 @@ class General:
                     except OSError:
                         pass  # already closed by the GUI thread
                     self.udp_socket = None
+                # Drop the TCP link to NTR as well: a lingering one
+                # blocks the next connection attempt
+                if self.tcp_socket is not None:
+                    try:
+                        self.tcp_socket.close()
+                    except OSError:
+                        pass
+                    self.tcp_socket = None
             case 1:
                 self.ConnectButton.config(relief = 'sunken')
                 self.ConnectButton.config(state = 'disabled')

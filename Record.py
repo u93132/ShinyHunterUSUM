@@ -22,6 +22,8 @@ class Record:
         self.image   = app.image
         self.stop = threading.Event()
         self.stop.set()
+        self.tcp_socket = None
+        self.hunterlock = False   # True from ConnectState(1) to (-1)
         self.auto_running = False
         self.auto_count   = 0
         self._last_saved  = None
@@ -97,21 +99,37 @@ class Record:
             self.Disconnected()
             self.msgbox.MsgAppend('Record stopped')
 
+    def TVstate(self):
+        # Single authority over the TV button: it is enabled only
+        # when the hunter does not own the stream and no burst runs
+        if self.hunterlock or self.auto_running:
+            self.ConnectButton.config(state='disabled')
+        else:
+            self.ConnectButton.config(state='normal')
+
     def HunterState(self, on):
         # The hunter owns the stream: the TV icon mirrors it, locked
+        self.hunterlock = on
         if on:
             self.ConnectButton.config(image=self.bitmap['TVon'],
-                                      relief='sunken',
-                                      state='disabled')
+                                      relief='sunken')
             self.ConnTip.set_text('Stream is on')
         else:
             self.ConnectButton.config(image=self.bitmap['TVoff'],
-                                      relief='raised',
-                                      state='normal')
+                                      relief='raised')
             self.ConnTip.set_text('Stream is off')
+        self.TVstate()
 
     def Disconnected(self):
         self.StopAuto()
+        # Drop the TCP link to NTR as well: a lingering one blocks
+        # the next connection attempt (ours or the hunter's)
+        if self.tcp_socket is not None:
+            try:
+                self.tcp_socket.close()
+            except OSError:
+                pass
+            self.tcp_socket = None
         self.ConnectButton.config(image=self.bitmap['TVoff'],
                                   relief='raised')
         self.ConnTip.set_text('Stream is off')
@@ -237,18 +255,18 @@ class Record:
     def BurstLock(self, on):
         # While the burst runs, only the camera button stays usable
         state = 'disabled' if on else 'normal'
-        self.ConnectButton.config(state = state)
         self.BrowseButton.config(state = state)
         self.PathEntry.config(state = state)
         self.autobtn.config(state = state)
+        self.TVstate()
 
     def StopAuto(self):
         self.SaveButton.config(relief='raised')
-        self.BurstLock(False)
         if self.auto_running:
             self.auto_running = False
             self.msgbox.MsgAppend('Auto capture stopped '
                                   f'({self.auto_count} saved)')
+        self.BurstLock(False)
 
     def SaveShot(self):
         if int(self.autovar.get()) == 0:
@@ -271,8 +289,9 @@ class Record:
         # Save every fresh frame of the selected screen (~10/s max)
         if not self.auto_running:
             return
-        if self.stop.is_set():
-            # our own stream is gone, stop capturing
+        hunter_on = str(self.General.ConnectButton['relief']) == 'sunken'
+        if self.stop.is_set() and not hunter_on:
+            # no stream from either side, stop capturing
             self.StopAuto()
             return
         s = 0 if int(self.app.lowerVal.get()) == 1 else 1
