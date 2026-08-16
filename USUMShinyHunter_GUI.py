@@ -164,19 +164,12 @@ class ShinyHunterUSUM(tk.Tk):
             self.destroy()
 
     def screenSwitch(self):
-        # To have better performance, only one screen is updating
-        if int(self.upperVal.get()) == 1:
-            self.lowerVal.set(0)
-            self.lowerbtn.config(state = 'disabled')
-        else:
+        # Both screens may update at once; an unticked screen falls
+        # back to its placeholder
+        if int(self.upperVal.get()) == 0:
             self.upperlabel.config(image = self.bitmap['Upper'])
-            self.lowerbtn.config(state = 'normal')
-        if int(self.lowerVal.get()) == 1:
-            self.upperVal.set(0)
-            self.upperbtn.config(state = 'disabled')
-        else:
+        if int(self.lowerVal.get()) == 0:
             self.lowerlabel.config(image = self.bitmap['Lower'])
-            self.upperbtn.config(state = 'normal')
 
     def background_thread(self):
         # Fetch data from the UDP socket 
@@ -238,18 +231,15 @@ class ShinyHunterUSUM(tk.Tk):
 
     def show_frame(self, s):
         # Update screen s (0 = lower, 1 = upper) when its checkbox is
-        # on; the other label falls back to its placeholder
+        # on; an unticked screen keeps its placeholder
         val   = (self.lowerVal,   self.upperVal)[s]
         label = (self.lowerlabel, self.upperlabel)[s]
-        other = (self.upperlabel, self.lowerlabel)[s]
         size  = ((96, 72), (120, 72))[s]
-        name      = ('Lower', 'Upper')[s]
-        othername = ('Upper', 'Lower')[s]
+        name  = ('Lower', 'Upper')[s]
         if int(val.get()) == 1:
             img = ImageTk.PhotoImage(self.image[s].resize(size))
             label.config(image = img)
             label.image = img  # keep a reference, or Tk loses the image
-            other.config(image = self.bitmap[othername])
         else:
             label.config(image = self.bitmap[name])
 

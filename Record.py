@@ -4,7 +4,7 @@ from pathlib import Path
 from tkinter import filedialog
 
 from PIL import Image
-from functions import check, i2L, load_bitmaps
+from functions import check, i2L, load_bitmaps, combine_images
 from boxBase import ToolTip
 
 # Define the application class
@@ -26,7 +26,7 @@ class Record:
         self.hunterlock = False   # True from ConnectState(1) to (-1)
         self.auto_running = False
         self.auto_count   = 0
-        self._last_saved  = None
+        self._last_saved  = {}
         self._nextn = {}   # cached next file number per (folder, name)
         # own frame-assembly state, separate from the app's stream
         self.bytes = [b'', b'']
@@ -151,6 +151,7 @@ class Record:
         self.ConnectButton.config(image=self.bitmap['TVon'],
                                   relief='sunken')
         self.ConnTip.set_text('Stream is on')
+        self.msgbox.msgbox.config(bg = 'white')
         # The stream owns the UDP port now: lock the hunting UI
         self.General.RecordLock(True)
         # Drop frames left from a previous run
@@ -205,6 +206,10 @@ class Record:
         # and display so the screen previews stay live
         while True:
             if self.stop.is_set():
+                # restore the placeholder previews, same behavior as
+                # the hunter's stream on disconnect
+                self.app.upperlabel.config(image=self.app.bitmap['Upper'])
+                self.app.lowerlabel.config(image=self.app.bitmap['Lower'])
                 try:
                     self.udp_socket.close()
                 except OSError:
@@ -268,6 +273,15 @@ class Record:
                                   f'({self.auto_count} saved)')
         self.BurstLock(False)
 
+    def SelScreens(self):
+        # Every ticked screen: up to [0, 1], empty when none
+        sel = []
+        if int(self.app.lowerVal.get()) == 1:
+            sel.append(0)
+        if int(self.app.upperVal.get()) == 1:
+            sel.append(1)
+        return sel
+
     def SaveShot(self):
         if int(self.autovar.get()) == 0:
             self.SaveOne()
@@ -276,10 +290,12 @@ class Record:
         # a sunken camera means the burst is running
         if self.auto_running:
             self.StopAuto()
+        elif not self.SelScreens():
+            self.msgbox.MsgAppend('Error: No screen is selected')
         else:
             self.auto_running = True
             self.auto_count   = 0
-            self._last_saved  = None
+            self._last_saved  = {}
             self.SaveButton.config(relief='sunken')
             self.BurstLock(True)
             self.msgbox.MsgAppend('Auto capture started')
@@ -294,20 +310,57 @@ class Record:
             # no stream from either side, stop capturing
             self.StopAuto()
             return
-        s = 0 if int(self.app.lowerVal.get()) == 1 else 1
-        img = self.image[s]
-        if img is not None and id(img) != self._last_saved:
-            self._last_saved = id(img)
-            self.SaveOne(quiet=True)
+        sel = self.SelScreens()
+        if not sel:
+            self.msgbox.MsgAppend('Error: No screen is selected')
+            self.StopAuto()
+            return
+        if len(sel) == 2:
+            # combined mode: a fresh frame on either screen makes a
+            # new pair worth saving
+            pair = (id(self.image[0]), id(self.image[1]))
+            if (self.image[0] is not None and
+                    self.image[1] is not None and
+                    pair != self._last_saved.get('pair')):
+                self._last_saved['pair'] = pair
+                self.SaveCombined(quiet=True)
+        else:
+            s = sel[0]
+            img = self.image[s]
+            if img is not None and id(img) != self._last_saved.get(s):
+                self._last_saved[s] = id(img)
+                self.SaveScreen(s, quiet=True)
         self.frame.after(100, self.auto_tick)
 
     def SaveOne(self, quiet=False):
-        # Save the selected screen's latest frame at full resolution
-        s = 0 if int(self.app.lowerVal.get()) == 1 else 1
+        # Save the ticked screen at full resolution; with both
+        # screens ticked the two frames merge into one picture
+        sel = self.SelScreens()
+        if not sel:
+            self.msgbox.MsgAppend('Error: No screen is selected')
+            return
+        if len(sel) == 2:
+            self.SaveCombined(quiet)
+        else:
+            self.SaveScreen(sel[0], quiet)
+
+    def SaveScreen(self, s, quiet=False):
+        # Save one screen's latest frame
         img = self.image[s]
         if img is None:
             self.msgbox.MsgAppend('Error: No frame received yet')
             return
+        self.SaveImage(img, ('Lower', 'Upper')[s], quiet)
+
+    def SaveCombined(self, quiet=False):
+        # Save both screens merged side by side
+        if self.image[0] is None or self.image[1] is None:
+            self.msgbox.MsgAppend('Error: No frame received yet')
+            return
+        self.SaveImage(combine_images(self.image), 'Combined', quiet)
+
+    def SaveImage(self, img, name, quiet=False):
+        # Write an image to the save folder with a running number
         folder = Path(self.PathEntry.get())
         try:
             folder.mkdir(parents=True, exist_ok=True)
@@ -315,7 +368,6 @@ class Record:
             self.msgbox.MsgAppend('Error: Cannot use the save folder')
             self.StopAuto()
             return
-        name = ('Lower', 'Upper')[s]
         key = (str(folder), name)
         n = self._nextn.get(key, 1)
         while (folder / f'{name}_{n:04d}.jpg').is_file():
