@@ -17,7 +17,7 @@ from Recv    import *
 from Lotto   import *
 from Record  import *
 
-VERSION = '1.0.0'
+VERSION = '1.0.1'
 
 # Define the application class
 class ShinyHunterUSUM(tk.Tk):

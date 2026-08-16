@@ -253,8 +253,10 @@ class Record:
         # Toggle between one-shot and continuous capture
         self.StopAuto()
         if int(self.autovar.get()) == 1:
+            self.SaveButton.config(image=self.bitmap['video'])
             self.SaveTip.set_text('Record the stream')
         else:
+            self.SaveButton.config(image=self.bitmap['camera'])
             self.SaveTip.set_text('Save a screenshot')
 
     def BurstLock(self, on):
