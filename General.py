@@ -52,6 +52,7 @@ class General:
         self.clientIP    = '192.168.137.50'
         self.tcp_socket  = None    # pre assign the NTR tcp object
         self.udp_socket  = None    # pre assign the NTR udp object
+        self.RecordHook = None     # set by the GUI once Record exists
         self.start_count = 1
         # Load images
         self.bitmap = load_bitmaps(f'image0/{self.tabname}')
@@ -213,6 +214,8 @@ class General:
                 self.ConnectButton.config(relief = 'sunken')
                 self.ConnectButton.config(state = 'disabled')
                 self.ResetButton.config(state = 'disabled')
+                if self.RecordHook is not None:
+                    self.RecordHook(True)
                 self.IPDS.Entry.config(state = 'disabled')
                 self.IPPC.Entry.config(state = 'disabled')
                 self.Counter.Entry.config(state = 'disabled')
@@ -223,6 +226,15 @@ class General:
             case -1:
                 self.ConnectButton.config(state = 'normal')
                 self.ResetButton.config(state = 'normal')
+                if self.RecordHook is not None:
+                    self.RecordHook(False)
+
+    def RecordLock(self, on):
+        # While the Record stream owns the port, only tab switching
+        # is locked; everything else stays as it is
+        state = 'disabled' if on else 'normal'
+        for j in range(len(self.TabButton) + 1):
+            self.nb.tab(j, state = state)
 
     def test3DS(self):
         # Test if 3DS is still alive

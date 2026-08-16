@@ -13,6 +13,12 @@ class ToolTip:
         widget.bind('<Leave>', self.hide)
         widget.bind('<ButtonPress>', self.hide)
 
+    def set_text(self, text):
+        # Change the hint; updates the tip in place if it is visible
+        self.text = text
+        if self.tip is not None:
+            self.tip.winfo_children()[0].config(text=text)
+
     def schedule(self, event=None):
         self.after_id = self.widget.after(self.delay, self.show)
 

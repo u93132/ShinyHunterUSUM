@@ -15,8 +15,9 @@ from General import *
 from Battle  import *
 from Recv    import *
 from Lotto   import *
+from Record  import *
 
-VERSION = '0.4.1'
+VERSION = '1.0.0'
 
 # Define the application class
 class ShinyHunterUSUM(tk.Tk):
@@ -130,6 +131,16 @@ class ShinyHunterUSUM(tk.Tk):
         self.Lotto  = Lotto (self.nb, self.General, self.msgbox, self.image)
         self.Recv   = Recv  (self.nb, self.General, self.msgbox, self.image)
         self.Battle = Battle(self.nb, self.General, self.msgbox, self.image)
+        # Record page: independent of the hunting-mode machinery, so
+        # it lives outside nb.framename and the Tab radio buttons
+        recframe = tk.Frame(self.nb)
+        recframe.config(height=105, width=250)
+        recframe.pack()
+        self.nb.add(recframe, text='Record')
+        self.Record = Record(recframe, self)
+        # The hunter and the recorder share one UDP port: the TV icon
+        # mirrors whichever stream is active, locked during hunts
+        self.General.RecordHook = self.Record.HunterState
 
         currset = (self.General.lockedslot or 1) - 1
         self.General.setting.set(self.General.settinglist[currset])
@@ -366,6 +377,7 @@ class ShinyHunterUSUM(tk.Tk):
             self.GUI2data(currset)
             self.General.WriteSetting(self.General.data)            
             # Start main procedure
+            self.TIDm = None
             if int(self.General.Tab.get()) == 0:
                 self.msgbox.MsgAppend('Step 5: Start shiny hunting...')
                 self.Battle.ir = self.ir
@@ -384,7 +396,8 @@ class ShinyHunterUSUM(tk.Tk):
                 self.TIDm = threading.Thread(
                             target=self.Lotto.main_procedure,
                             name='lotto', daemon=True)
-            self.TIDm.start()
+            if self.TIDm is not None:
+                self.TIDm.start()
             self.General.ConnectButton.config(state = 'normal')
 
     def settingswitch(self, event=None):
