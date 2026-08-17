@@ -4,8 +4,14 @@ from pathlib import Path
 from tkinter import filedialog
 
 from PIL import Image
-from functions import check, i2L, load_bitmaps, combine_images
+from functions import (check, i2L, load_bitmaps, combine_images,
+                       resource_path)
 from boxBase import ToolTip
+
+# Screen hole positions inside the N3DS console template: the holes
+# are exactly native resolution, so frames paste in 1:1
+N3DS_BOX = {0: (139, 362), 1: (99, 50)}      # lower, upper
+N3DS_SIZE = {0: (320, 240), 1: (400, 240)}
 
 # Define the application class
 class Record:
@@ -34,6 +40,15 @@ class Record:
         self.index_prev = -1
         # Load images
         self.bitmap = load_bitmaps('image0/Record')
+        self.n3ds = tuple(
+            Image.open(resource_path(
+                f'image0/Record/N3DSXL{c}.png')).convert('RGBA')
+            for c in ('Red', 'Blue'))
+        # Shot modes: plain picture / red console / blue console
+        self.shotmode = 0
+        self.modeicon = ('image', 'redconsole', 'blueconsole')
+        self.modetip  = ('Picture only', 'Red console frame',
+                         'Blue console frame')
 
         ########################################################################
         ################################ Objects ###############################
@@ -66,11 +81,17 @@ class Record:
                                     image=self.bitmap['camera'],
                                     command=self.SaveShot)
         self.SaveButton .pack(padx=6, pady=0, side='left')
+        # Shot mode: each click cycles picture-only / red / blue
+        self.ModeButton = tk.Button(self.frameBtn,
+                                    image=self.bitmap['image'],
+                                    command=self.ModeSwitch)
+        self.ModeButton .pack(padx=3, pady=0, side='left')
         self.autovar = tk.IntVar()
         self.autobtn = tk.Checkbutton(self.frameBtn, text='Auto',
                                       variable=self.autovar,
                                       command=self.autoswitch)
         self.autobtn .pack(padx=3, pady=0, side='left')
+        self.ModeTip = ToolTip(self.ModeButton, self.modetip[0])
         self.ConnTip = ToolTip(self.ConnectButton, 'Stream is off')
         self.SaveTip = ToolTip(self.SaveButton, 'Save a screenshot')
 
@@ -249,6 +270,13 @@ class Record:
             except Exception:
                 self.msgbox.MsgAppend('Error: Packet analyze error')
 
+    def ModeSwitch(self):
+        # Cycle the shot mode and show it on the button icon
+        self.shotmode = (self.shotmode + 1) % 3
+        self.ModeButton.config(
+            image=self.bitmap[self.modeicon[self.shotmode]])
+        self.ModeTip.set_text(self.modetip[self.shotmode])
+
     def autoswitch(self):
         # Toggle between one-shot and continuous capture
         self.StopAuto()
@@ -265,6 +293,7 @@ class Record:
         self.BrowseButton.config(state = state)
         self.PathEntry.config(state = state)
         self.autobtn.config(state = state)
+        self.ModeButton.config(state = state)
         self.TVstate()
 
     def StopAuto(self):
@@ -326,33 +355,56 @@ class Record:
             self.StopAuto()
             return
         if len(sel) == 2:
-            # combined mode: a fresh frame on either screen makes a
-            # new pair worth saving
+            # a fresh frame on either screen makes a new pair worth
+            # saving; SaveOne routes to combined or N3DS mode
             pair = (id(self.image[0]), id(self.image[1]))
             if (self.image[0] is not None and
                     self.image[1] is not None and
                     pair != self._last_saved.get('pair')):
                 self._last_saved['pair'] = pair
-                self.SaveCombined(quiet=True)
+                self.SaveOne(quiet=True)
         else:
             s = sel[0]
             img = self.image[s]
             if img is not None and id(img) != self._last_saved.get(s):
                 self._last_saved[s] = id(img)
-                self.SaveScreen(s, quiet=True)
+                self.SaveOne(quiet=True)
         self.frame.after(100, self.auto_tick)
 
     def SaveOne(self, quiet=False):
         # Save the ticked screen at full resolution; with both
-        # screens ticked the two frames merge into one picture
+        # screens ticked the two frames merge into one picture, and
+        # N3DS mode frames them inside the console picture instead
         sel = self.SelScreens()
         if not sel:
             self.msgbox.MsgAppend('Error: No screen is selected')
             return
-        if len(sel) == 2:
+        if self.shotmode:
+            self.SaveN3DS(sel, quiet)
+        elif len(sel) == 2:
             self.SaveCombined(quiet)
         else:
             self.SaveScreen(sel[0], quiet)
+
+    def SaveN3DS(self, sel, quiet=False):
+        # Paste the ticked screens into the console template; an
+        # unticked screen stays blacked out
+        for s in sel:
+            if self.image[s] is None:
+                self.msgbox.MsgAppend('Error: No frame received yet')
+                return
+        console = self.n3ds[self.shotmode - 1]
+        canvas = Image.new('RGBA', console.size, (0, 0, 0, 0))
+        for s in (0, 1):
+            if s in sel:
+                canvas.paste(self.image[s].convert('RGBA'),
+                             N3DS_BOX[s])
+            else:
+                canvas.paste(Image.new('RGBA', N3DS_SIZE[s],
+                                       (0, 0, 0, 255)), N3DS_BOX[s])
+        self.SaveImage(Image.alpha_composite(canvas, console),
+                       ('N3DSRed', 'N3DSBlue')[self.shotmode - 1],
+                       quiet, ext='png')
 
     def SaveScreen(self, s, quiet=False):
         # Save one screen's latest frame
@@ -369,7 +421,7 @@ class Record:
             return
         self.SaveImage(combine_images(self.image), 'Combined', quiet)
 
-    def SaveImage(self, img, name, quiet=False):
+    def SaveImage(self, img, name, quiet=False, ext='jpg'):
         # Write an image to the save folder with a running number
         folder = Path(self.PathEntry.get())
         try:
@@ -380,11 +432,11 @@ class Record:
             return
         key = (str(folder), name)
         n = self._nextn.get(key, 1)
-        while (folder / f'{name}_{n:04d}.jpg').is_file():
+        while (folder / f'{name}_{n:04d}.{ext}').is_file():
             n = n + 1
-        img.save(folder / f'{name}_{n:04d}.jpg')
+        img.save(folder / f'{name}_{n:04d}.{ext}')
         self._nextn[key] = n + 1
         self.auto_count = self.auto_count + 1
         if not quiet:
-            self.msgbox.MsgAppend(f'Saved {name}_{n:04d}.jpg '
+            self.msgbox.MsgAppend(f'Saved {name}_{n:04d}.{ext} '
                                   f'({img.size[0]}x{img.size[1]})')
