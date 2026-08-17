@@ -275,6 +275,12 @@ class Record:
                                   f'({self.auto_count} saved)')
         self.BurstLock(False)
 
+    def StreamOn(self):
+        # A stream is running: ours or the hunter's
+        if not self.stop.is_set():
+            return True
+        return str(self.General.ConnectButton['relief']) == 'sunken'
+
     def SelScreens(self):
         # Every ticked screen: up to [0, 1], empty when none
         sel = []
@@ -285,6 +291,9 @@ class Record:
         return sel
 
     def SaveShot(self):
+        if not self.auto_running and not self.StreamOn():
+            self.msgbox.MsgAppend('Error: No active stream')
+            return
         if int(self.autovar.get()) == 0:
             self.SaveOne()
             return
@@ -307,8 +316,7 @@ class Record:
         # Save every fresh frame of the selected screen (~10/s max)
         if not self.auto_running:
             return
-        hunter_on = str(self.General.ConnectButton['relief']) == 'sunken'
-        if self.stop.is_set() and not hunter_on:
+        if not self.StreamOn():
             # no stream from either side, stop capturing
             self.StopAuto()
             return
