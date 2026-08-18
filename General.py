@@ -19,6 +19,10 @@ class Setting:
     aura:    int = 0
     recv:    int = 0
     loto:    list = field(default_factory=lambda: [1, 2])
+    # Record tab: save folder ('' = default), shot mode, Auto
+    recpath:  str = ''
+    shotmode: int = 0
+    recauto:  int = 0
 
 def lock_slot(folder, num):
     # Try to lock settings slot `num`. Returns the open lock handle,
@@ -291,7 +295,12 @@ class General:
                         slot.loto = [int(k) for k in temp[1].split(',')]
                     except ValueError:
                         slot.loto = []
-                case 'count' | 'currtab' | 'move' | 'aura' | 'recv':
+                case 'recpath':
+                    # split only on the first '=' so a folder name
+                    # containing '=' survives the round trip
+                    slot.recpath = line.split('=', 1)[1]
+                case ('count' | 'currtab' | 'move' | 'aura' | 'recv'
+                      | 'shotmode' | 'recauto'):
                     setattr(slot, temp[0], int(temp[1]))
 
     def LoadSetting(self):
@@ -316,6 +325,9 @@ class General:
             f.write(f'aura={d.aura}\n')
             f.write(f'recv={d.recv}\n')
             f.write('loto=' + ','.join(str(k) for k in d.loto) + '\n')
+            f.write(f'recpath={d.recpath}\n')
+            f.write(f'shotmode={d.shotmode}\n')
+            f.write(f'recauto={d.recauto}\n')
 
     def WriteSetting(self, data):
         # Write the selected slot to its own file; the other slots

@@ -270,12 +270,16 @@ class Record:
             except Exception:
                 self.msgbox.MsgAppend('Error: Packet analyze error')
 
-    def ModeSwitch(self):
-        # Cycle the shot mode and show it on the button icon
-        self.shotmode = (self.shotmode + 1) % 3
+    def ModeShow(self):
+        # Reflect the current shot mode on the button icon
         self.ModeButton.config(
             image=self.bitmap[self.modeicon[self.shotmode]])
         self.ModeTip.set_text(self.modetip[self.shotmode])
+
+    def ModeSwitch(self):
+        # Cycle the shot mode: picture / red / blue console
+        self.shotmode = (self.shotmode + 1) % 3
+        self.ModeShow()
 
     def autoswitch(self):
         # Toggle between one-shot and continuous capture
@@ -443,3 +447,21 @@ class Record:
         if not quiet:
             self.msgbox.MsgAppend(f'Saved {name}_{n:04d}.{ext} '
                                   f'({img.size[0]}x{img.size[1]})')
+
+    def GUI2data(self, i):
+        # For each tab, GUI to setting data struct
+        self.General.data[i].recpath  = self.PathEntry.get()
+        self.General.data[i].shotmode = self.shotmode
+        self.General.data[i].recauto  = int(self.autovar.get())
+
+    def data2GUI(self, i):
+        # For each tab, setting data struct to GUI; an empty saved
+        # path keeps the default folder chosen at startup
+        d = self.General.data[i]
+        if d.recpath:
+            self.PathEntry.delete(0, 'end')
+            self.PathEntry.insert(0, d.recpath)
+        self.shotmode = d.shotmode if d.shotmode in (0, 1, 2) else 0
+        self.ModeShow()
+        self.autovar.set(1 if d.recauto else 0)
+        self.autoswitch()

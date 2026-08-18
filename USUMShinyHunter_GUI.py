@@ -401,12 +401,14 @@ class ShinyHunterUSUM(tk.Tk):
         self.Battle.GUI2data(i)
         self.Recv.GUI2data(i)
         self.Lotto.GUI2data(i)
+        self.Record.GUI2data(i)
 
     def data2GUI(self,i):
         self.General.data2GUI(i)
         self.Battle.data2GUI(i)
         self.Recv.data2GUI(i)
         self.Lotto.data2GUI(i)
+        self.Record.data2GUI(i)
 
 app = ShinyHunterUSUM()
 app.mainloop()
