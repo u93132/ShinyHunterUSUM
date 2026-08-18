@@ -97,27 +97,27 @@ class Record:
         self.ConnectButton = tk.Button(self.frameBtn,
                                        image=self.bitmap['TVoff'],
                                        command=self.Connect)
-        self.ConnectButton .pack(padx=3, pady=0, side='left')
+        self.ConnectButton .pack(padx=(3, 0), pady=0, side='left')
         # Shot form: each click cycles picture-only / red / blue
         self.ModeButton = tk.Button(self.frameBtn,
                                     image=self.bitmap['image'],
                                     command=self.ModeSwitch)
-        self.ModeButton .pack(padx=6, pady=0, side='left')
+        self.ModeButton .pack(padx=(5, 0), pady=0, side='left')
         # Capture mode: one shot / burst / video / AFK per round
         self.CapButton = tk.Button(self.frameBtn,
                                    image=self.icon('camera'),
                                    command=self.CapSwitch)
-        self.CapButton .pack(padx=3, pady=0, side='left')
+        self.CapButton .pack(padx=0, pady=0, side='left')
         # Video format: AVI or GIF, only alive in the video modes
         self.FmtButton = tk.Button(self.frameBtn,
                                    image=self.icon('aviicon'),
                                    command=self.FmtSwitch)
-        self.FmtButton .pack(padx=3, pady=0, side='left')
+        self.FmtButton .pack(padx=0, pady=0, side='left')
         # Run button: fires or stops the selected capture
         self.SaveButton = tk.Button(self.frameBtn,
                                     image=self.icon('run'),
                                     command=self.SaveShot)
-        self.SaveButton .pack(padx=3, pady=0, side='left')
+        self.SaveButton .pack(padx=(5, 0), pady=0, side='left')
         self.ModeTip = ToolTip(self.ModeButton, self.modetip[0])
         self.CapTip  = ToolTip(self.CapButton, self.captip[0])
         self.FmtTip  = ToolTip(self.FmtButton, self.fmttip[0])
