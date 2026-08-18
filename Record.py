@@ -432,6 +432,7 @@ class Record:
         self._last_saved = {}
         self.recbuf = []
         self.rec_t0 = None
+        self.recHunter = False
         # Arming while the hunter is already mid-round: that round
         # is only half captured, so recording counts from the next
         self.rec_skip = mode == 'afk' and self.hunterlock
@@ -465,14 +466,17 @@ class Record:
             if self.runmode != 'afk':
                 self.StopRun()
                 return
-            # AFK stays armed between streams. The hunter's stream
-            # ending mid-round means the buffer holds the run that
-            # stopped the hunt - the shiny - and it never got a
-            # RoundHook, so flush it here; anything else is stale
-            if self.recbuf and self.recHunter:
-                self.RoundFlush(self.General.start_count)
-            else:
-                self.recbuf = []
+            # AFK: the hunter's stream ending means the hunt is
+            # over. Its last round - the shiny - never got a
+            # RoundHook, so flush it, then pop the run button in
+            # step with the hunter's Connect. An arm that has not
+            # seen the hunter yet just keeps waiting for it
+            if self.recHunter:
+                if self.recbuf:
+                    self.RoundFlush(self.General.start_count)
+                self.StopRun()
+                return
+            self.recbuf = []
         elif self.FreshFrame():
             match self.runmode:
                 case 'burst':
