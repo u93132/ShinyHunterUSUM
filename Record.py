@@ -5,7 +5,7 @@ from tkinter import filedialog
 
 from PIL import Image
 from functions import (check, i2L, load_bitmaps, combine_images,
-                       resource_path, write_avi, write_gif)
+                       resource_path, write_avi, write_anim)
 from boxBase import ToolTip
 
 # Screen hole positions inside the N3DS console template: the holes
@@ -66,10 +66,12 @@ class Record:
                         f'Video, {VIDEO_CAP:.0f} s max',
                         'One video per hunt round, '
                         f'last {AFK_CAP:.0f} s')
-        # Video output formats: MJPEG AVI or animated GIF
+        # Video output formats: MJPEG AVI, animated GIF, or APNG
         self.vidfmt  = 0
-        self.fmticon = ('aviicon', 'gificon')
-        self.fmttip  = ('Save videos as AVI', 'Save videos as GIF')
+        self.fmticon = ('aviicon', 'gificon', 'apngicon')
+        self.fmtext  = ('avi', 'gif', 'png')
+        self.fmttip  = ('Save videos as AVI', 'Save videos as GIF',
+                        'Save videos as APNG')
 
         ########################################################################
         ################################ Objects ###############################
@@ -345,8 +347,8 @@ class Record:
         self.FmtTip.set_text(self.fmttip[self.vidfmt])
 
     def FmtSwitch(self):
-        # Toggle the video output format: AVI / GIF
-        self.vidfmt = (self.vidfmt + 1) % 2
+        # Cycle the video output format: AVI / GIF / APNG
+        self.vidfmt = (self.vidfmt + 1) % 3
         self.FmtShow()
 
     def CapShow(self):
@@ -588,7 +590,7 @@ class Record:
             return
         dur = buf[-1][0] - buf[0][0]
         if path is None:
-            path = self.NextFile(name, ('avi', 'gif')[self.vidfmt])
+            path = self.NextFile(name, self.fmtext[self.vidfmt])
             if path is None:
                 return
         frames = [f for t, f in buf]
@@ -599,7 +601,8 @@ class Record:
                 durs = [round((b - a) * 1000)
                         for a, b in zip(ts, ts[1:])]
                 durs.append(round(sum(durs) / len(durs)))
-                write_gif(path, frames, durs)
+                write_anim(path, frames, durs,
+                           ('GIF', 'PNG')[self.vidfmt - 1])
             else:
                 fps = (len(buf) - 1) / dur if dur > 0 else 10.0
                 size = Image.open(io.BytesIO(frames[0])).size
@@ -635,7 +638,7 @@ class Record:
         buf, self.recbuf = self.recbuf, []
         path = (Path(self.PathEntry.get()) /
                 f'AFK_{self.General.lockedslot or 0}_{count:04d}.'
-                f'{("avi", "gif")[self.vidfmt]}')
+                f'{self.fmtext[self.vidfmt]}')
         threading.Thread(target=self.SaveVideo, name='afk-writer',
                          args=(buf, 'AFK', path), daemon=True).start()
 
@@ -660,6 +663,6 @@ class Record:
         self.ModeShow()
         self.capmode = d.capmode if d.capmode in (0, 1, 2, 3) else 0
         self.shinyvar.set(1 if d.onlyshiny else 0)
-        self.vidfmt = d.vidfmt if d.vidfmt in (0, 1) else 0
+        self.vidfmt = d.vidfmt if d.vidfmt in (0, 1, 2) else 0
         self.FmtShow()
         self.CapShow()

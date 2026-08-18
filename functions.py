@@ -138,14 +138,24 @@ def write_avi(path, frames, size, fps):
     with open(path, 'wb') as f:
         f.write(_chunk(b'RIFF', b'AVI ' + body))
 
-# Write an animated GIF from JPEG-encoded frames; durations are per
-# frame in milliseconds. A generator feeds the appended frames so
-# only one decoded image lives in memory at a time
-def write_gif(path, frames, durations):
+# Re-iterable JPEG-frame sequence: PIL's PNG writer walks
+# append_images twice (a mode scan, then the frame write), which
+# would exhaust a plain generator after the first pass. Each pass
+# decodes one frame at a time, so memory stays flat
+class _JPEGFrames:
+    def __init__(self, frames):
+        self.frames = frames
+
+    def __iter__(self):
+        return (Image.open(io.BytesIO(f)).convert('RGB')
+                for f in self.frames)
+
+# Write an animated GIF or APNG (fmt 'GIF' / 'PNG') from
+# JPEG-encoded frames; durations are per frame in milliseconds
+def write_anim(path, frames, durations, fmt):
     first = Image.open(io.BytesIO(frames[0])).convert('RGB')
-    rest = (Image.open(io.BytesIO(f)).convert('RGB')
-            for f in frames[1:])
-    first.save(path, save_all=True, append_images=rest,
+    first.save(path, fmt, save_all=True,
+               append_images=_JPEGFrames(frames[1:]),
                duration=durations, loop=0)
 
 # Combine images horizontally
