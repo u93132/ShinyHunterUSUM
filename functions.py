@@ -1,6 +1,6 @@
 import tkinter as tk
 import tkinter.font as tkfont
-import re, sys
+import io, re, sys, struct
 from pathlib import Path
 from PIL import Image, ImageStat, ImageTk
 
@@ -90,6 +90,63 @@ def load_bitmaps(folder):
         else:
             bitmap[p.stem] = ImageTk.PhotoImage(Image.open(p))
     return bitmap
+
+# One RIFF chunk: fourcc + size + data, padded to an even length
+def _chunk(fourcc, data):
+    if len(data) % 2:
+        data += b'\x00'
+    return fourcc + struct.pack('<I', len(data)) + data
+
+def _list(fourcc, data):
+    return _chunk(b'LIST', fourcc + data)
+
+# Write an MJPEG AVI video: the stream's JPEG frames go into the
+# container unchanged, so the picture quality is exactly the stream's
+# and no codec library is needed. All frames must share `size`.
+def write_avi(path, frames, size, fps):
+    w, h  = size
+    rate  = max(1, round(fps * 1000))   # frame rate = rate / scale
+    scale = 1000
+    n      = len(frames)
+    maxbuf = max(len(f) for f in frames)
+    avih = struct.pack('<14I',
+        round(1e6 * scale / rate),      # microseconds per frame
+        maxbuf * rate // scale,         # max bytes per second
+        0, 0x10,                        # padding; flags: has index
+        n, 0, 1, maxbuf, w, h,          # frames, streams, buffer, size
+        0, 0, 0, 0)
+    strh = struct.pack('<4s4sIHHIIIIIIII4h',
+        b'vids', b'MJPG', 0, 0, 0, 0,
+        scale, rate, 0, n, maxbuf,
+        0xFFFFFFFF, 0,                  # default quality
+        0, 0, w, h)
+    strf = struct.pack('<IiiHH4sIiiII',
+        40, w, h, 1, 24, b'MJPG', w * h * 3, 0, 0, 0, 0)
+    hdrl = _list(b'hdrl', _chunk(b'avih', avih) +
+                 _list(b'strl', _chunk(b'strh', strh) +
+                                _chunk(b'strf', strf)))
+    movi, idx1 = [], []
+    offset = 4                          # from the 'movi' fourcc
+    for f in frames:
+        ck = _chunk(b'00dc', f)
+        movi.append(ck)
+        idx1.append(struct.pack('<4sIII', b'00dc', 0x10,
+                                offset, len(ck) - 8))
+        offset += len(ck)
+    body = (hdrl + _list(b'movi', b''.join(movi)) +
+            _chunk(b'idx1', b''.join(idx1)))
+    with open(path, 'wb') as f:
+        f.write(_chunk(b'RIFF', b'AVI ' + body))
+
+# Write an animated GIF from JPEG-encoded frames; durations are per
+# frame in milliseconds. A generator feeds the appended frames so
+# only one decoded image lives in memory at a time
+def write_gif(path, frames, durations):
+    first = Image.open(io.BytesIO(frames[0])).convert('RGB')
+    rest = (Image.open(io.BytesIO(f)).convert('RGB')
+            for f in frames[1:])
+    first.save(path, save_all=True, append_images=rest,
+               duration=durations, loop=0)
 
 # Combine images horizontally
 def combine_images(image_list):

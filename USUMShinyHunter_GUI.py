@@ -141,6 +141,8 @@ class ShinyHunterUSUM(tk.Tk):
         # The hunter and the recorder share one UDP port: the TV icon
         # mirrors whichever stream is active, locked during hunts
         self.General.RecordHook = self.Record.HunterState
+        # AFK recording: a finished hunt round flushes the recorder
+        self.General.RoundHook  = self.Record.RoundEnd
 
         currset = (self.General.lockedslot or 1) - 1
         self.General.setting.set(self.General.settinglist[currset])

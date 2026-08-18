@@ -19,10 +19,13 @@ class Setting:
     aura:    int = 0
     recv:    int = 0
     loto:    list = field(default_factory=lambda: [1, 2])
-    # Record tab: save folder ('' = default), shot mode, Auto
-    recpath:  str = ''
-    shotmode: int = 0
-    recauto:  int = 0
+    # Record tab: save folder ('' = default), shot form, capture
+    # mode, and whether AFK keeps only the shiny run
+    recpath:   str = ''
+    shotmode:  int = 0
+    capmode:   int = 0
+    onlyshiny: int = 1
+    vidfmt:    int = 0
 
 def lock_slot(folder, num):
     # Try to lock settings slot `num`. Returns the open lock handle,
@@ -57,6 +60,7 @@ class General:
         self.tcp_socket  = None    # pre assign the NTR tcp object
         self.udp_socket  = None    # pre assign the NTR udp object
         self.RecordHook = None     # set by the GUI once Record exists
+        self.RoundHook  = None     # called when a hunt round finishes
         self.start_count = 1
         # Load images
         self.bitmap = load_bitmaps(f'image0/{self.tabname}')
@@ -175,6 +179,9 @@ class General:
     def CounterPlusOne(self):
         # Update the counter and plus one; our slot is locked, so the
         # in-memory data is authoritative - no need to reload the files
+        # A finished round: tell the recorder before the count moves on
+        if self.RoundHook is not None:
+            self.RoundHook(self.start_count)
         self.start_count = self.start_count + 1
         self.Counter.Entry.config(state = 'normal')
         self.Counter.Entry.delete(0,'end')
@@ -299,8 +306,12 @@ class General:
                     # split only on the first '=' so a folder name
                     # containing '=' survives the round trip
                     slot.recpath = line.split('=', 1)[1]
+                case 'recauto':
+                    # legacy key: Auto=1 maps onto burst mode
+                    slot.capmode = int(temp[1])
                 case ('count' | 'currtab' | 'move' | 'aura' | 'recv'
-                      | 'shotmode' | 'recauto'):
+                      | 'shotmode' | 'capmode' | 'onlyshiny'
+                      | 'vidfmt'):
                     setattr(slot, temp[0], int(temp[1]))
 
     def LoadSetting(self):
@@ -327,7 +338,9 @@ class General:
             f.write('loto=' + ','.join(str(k) for k in d.loto) + '\n')
             f.write(f'recpath={d.recpath}\n')
             f.write(f'shotmode={d.shotmode}\n')
-            f.write(f'recauto={d.recauto}\n')
+            f.write(f'capmode={d.capmode}\n')
+            f.write(f'onlyshiny={d.onlyshiny}\n')
+            f.write(f'vidfmt={d.vidfmt}\n')
 
     def WriteSetting(self, data):
         # Write the selected slot to its own file; the other slots

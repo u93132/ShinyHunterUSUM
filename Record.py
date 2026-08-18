@@ -5,13 +5,18 @@ from tkinter import filedialog
 
 from PIL import Image
 from functions import (check, i2L, load_bitmaps, combine_images,
-                       resource_path)
+                       resource_path, write_avi, write_gif)
 from boxBase import ToolTip
 
 # Screen hole positions inside the N3DS console template: the holes
 # are exactly native resolution, so frames paste in 1:1
 N3DS_BOX = {0: (139, 362), 1: (99, 50)}      # lower, upper
 N3DS_SIZE = {0: (320, 240), 1: (400, 240)}
+# Video length caps in seconds: a manual recording stops itself at
+# VIDEO_CAP; AFK mode keeps the newest AFK_CAP of each hunt round so
+# a frozen game can never grow the buffer without bound
+VIDEO_CAP = 60.0
+AFK_CAP   = 200.0
 
 # Define the application class
 class Record:
@@ -30,10 +35,14 @@ class Record:
         self.stop.set()
         self.tcp_socket = None
         self.hunterlock = False   # True from ConnectState(1) to (-1)
-        self.auto_running = False
-        self.auto_count   = 0
-        self._last_saved  = {}
+        self.runmode    = None    # None / 'burst' / 'video' / 'afk'
+        self.auto_count = 0
+        self._last_saved = {}
         self._nextn = {}   # cached next file number per (folder, name)
+        self.recbuf  = []  # buffered (time, jpeg bytes) video frames
+        self.rec_sel = []  # screens fixed for the whole run
+        self.recHunter = False  # buffer fed by the hunter's stream
+        self.rec_skip  = False  # armed mid-round: wait for the next
         # own frame-assembly state, separate from the app's stream
         self.bytes = [b'', b'']
         self.frame_curr = -1
@@ -44,11 +53,23 @@ class Record:
             Image.open(resource_path(
                 f'image0/Record/N3DSXL{c}.png')).convert('RGBA')
             for c in ('Red', 'Blue'))
-        # Shot modes: plain picture / red console / blue console
+        # Shot forms: plain picture / red console / blue console
         self.shotmode = 0
         self.modeicon = ('image', 'redconsole', 'blueconsole')
         self.modetip  = ('Picture only', 'Red console frame',
                          'Blue console frame')
+        # Capture modes: one shot / burst / video / one video a round
+        self.capmode = 0
+        self.capicon = ('camera', 'auto', 'video', 'afk')
+        self.captip  = ('One screenshot',
+                        'Burst: every frame to a file',
+                        f'Video, {VIDEO_CAP:.0f} s max',
+                        'One video per hunt round, '
+                        f'last {AFK_CAP:.0f} s')
+        # Video output formats: MJPEG AVI or animated GIF
+        self.vidfmt  = 0
+        self.fmticon = ('aviicon', 'gificon')
+        self.fmttip  = ('Save videos as AVI', 'Save videos as GIF')
 
         ########################################################################
         ################################ Objects ###############################
@@ -77,27 +98,51 @@ class Record:
                                        image=self.bitmap['TVoff'],
                                        command=self.Connect)
         self.ConnectButton .pack(padx=3, pady=0, side='left')
-        # Shot mode: each click cycles picture-only / red / blue
+        # Shot form: each click cycles picture-only / red / blue
         self.ModeButton = tk.Button(self.frameBtn,
                                     image=self.bitmap['image'],
                                     command=self.ModeSwitch)
         self.ModeButton .pack(padx=6, pady=0, side='left')
+        # Capture mode: one shot / burst / video / AFK per round
+        self.CapButton = tk.Button(self.frameBtn,
+                                   image=self.icon('camera'),
+                                   command=self.CapSwitch)
+        self.CapButton .pack(padx=3, pady=0, side='left')
+        # Video format: AVI or GIF, only alive in the video modes
+        self.FmtButton = tk.Button(self.frameBtn,
+                                   image=self.icon('aviicon'),
+                                   command=self.FmtSwitch)
+        self.FmtButton .pack(padx=3, pady=0, side='left')
+        # Run button: fires or stops the selected capture
         self.SaveButton = tk.Button(self.frameBtn,
-                                    image=self.bitmap['camera'],
+                                    image=self.icon('run'),
                                     command=self.SaveShot)
         self.SaveButton .pack(padx=3, pady=0, side='left')
-        self.autovar = tk.IntVar()
-        self.autobtn = tk.Checkbutton(self.frameBtn, text='Auto',
-                                      variable=self.autovar,
-                                      command=self.autoswitch)
-        self.autobtn .pack(padx=3, pady=0, side='left')
         self.ModeTip = ToolTip(self.ModeButton, self.modetip[0])
+        self.CapTip  = ToolTip(self.CapButton, self.captip[0])
+        self.FmtTip  = ToolTip(self.FmtButton, self.fmttip[0])
         self.ConnTip = ToolTip(self.ConnectButton, 'Stream is off')
-        self.SaveTip = ToolTip(self.SaveButton, 'Save a screenshot')
+        self.SaveTip = ToolTip(self.SaveButton, 'Run the capture')
+        # AFK only: keep just the round that found the shiny
+        self.shinyvar = tk.IntVar()
+        self.shinyvar.set(1)
+        self.shinybtn = tk.Checkbutton(self.frame,
+                                       text='Only shiny run',
+                                       variable=self.shinyvar)
+        self.shinybtn .grid(row=2, column=0, padx=6, pady=0,
+                            sticky='w')
+        ToolTip(self.shinybtn,
+                'Keep only the round that found the shiny')
+        self.ShinyState()
+        self.FmtState()
 
     ############################################################################
     ################################ Functions #################################
     ############################################################################
+
+    def icon(self, name):
+        # Fall back to the camera icon until the gif gets drawn
+        return self.bitmap.get(name, self.bitmap['camera'])
 
     def Browse(self):
         folder = filedialog.askdirectory(
@@ -122,8 +167,8 @@ class Record:
 
     def TVstate(self):
         # Single authority over the TV button: it is enabled only
-        # when the hunter does not own the stream and no burst runs
-        if self.hunterlock or self.auto_running:
+        # when the hunter does not own the stream and no capture runs
+        if self.hunterlock or self.runmode is not None:
             self.ConnectButton.config(state='disabled')
         else:
             self.ConnectButton.config(state='normal')
@@ -142,7 +187,7 @@ class Record:
         self.TVstate()
 
     def Disconnected(self):
-        self.StopAuto()
+        self.StopRun()
         # Drop the TCP link to NTR as well: a lingering one blocks
         # the next connection attempt (ours or the hunter's)
         if self.tcp_socket is not None:
@@ -277,35 +322,71 @@ class Record:
         self.ModeTip.set_text(self.modetip[self.shotmode])
 
     def ModeSwitch(self):
-        # Cycle the shot mode: picture / red / blue console
+        # Cycle the shot form: picture / red / blue console
         self.shotmode = (self.shotmode + 1) % 3
         self.ModeShow()
 
-    def autoswitch(self):
-        # Toggle between one-shot and continuous capture
-        self.StopAuto()
-        if int(self.autovar.get()) == 1:
-            self.SaveButton.config(image=self.bitmap['video'])
-            self.SaveTip.set_text('Record the stream')
-        else:
-            self.SaveButton.config(image=self.bitmap['camera'])
-            self.SaveTip.set_text('Save a screenshot')
+    def ShinyState(self):
+        # The only-shiny switch matters only in AFK mode and is
+        # frozen while a capture runs
+        on = self.capmode == 3 and self.runmode is None
+        self.shinybtn.config(state='normal' if on else 'disabled')
+
+    def FmtState(self):
+        # The format button matters only in the video modes and is
+        # frozen while a capture runs
+        on = self.capmode >= 2 and self.runmode is None
+        self.FmtButton.config(state='normal' if on else 'disabled')
+
+    def FmtShow(self):
+        # Reflect the current video format on the button icon
+        self.FmtButton.config(
+            image=self.icon(self.fmticon[self.vidfmt]))
+        self.FmtTip.set_text(self.fmttip[self.vidfmt])
+
+    def FmtSwitch(self):
+        # Toggle the video output format: AVI / GIF
+        self.vidfmt = (self.vidfmt + 1) % 2
+        self.FmtShow()
+
+    def CapShow(self):
+        # Reflect the current capture mode on the button icon
+        self.CapButton.config(
+            image=self.icon(self.capicon[self.capmode]))
+        self.CapTip.set_text(self.captip[self.capmode])
+        self.ShinyState()
+        self.FmtState()
+
+    def CapSwitch(self):
+        # Cycle the capture mode: shot / burst / video / AFK
+        self.capmode = (self.capmode + 1) % 4
+        self.CapShow()
 
     def BurstLock(self, on):
-        # While the burst runs, only the camera button stays usable
+        # While a capture runs, only the run button stays usable
         state = 'disabled' if on else 'normal'
         self.BrowseButton.config(state = state)
         self.PathEntry.config(state = state)
-        self.autobtn.config(state = state)
         self.ModeButton.config(state = state)
+        self.CapButton.config(state = state)
         self.TVstate()
+        self.ShinyState()
+        self.FmtState()
 
-    def StopAuto(self):
+    def StopRun(self):
+        # End whatever capture is running; a video saves its frames
+        mode, self.runmode = self.runmode, None
         self.SaveButton.config(relief='raised')
-        if self.auto_running:
-            self.auto_running = False
-            self.msgbox.MsgAppend('Auto capture stopped '
-                                  f'({self.auto_count} saved)')
+        match mode:
+            case 'burst':
+                self.msgbox.MsgAppend('Auto capture stopped '
+                                      f'({self.auto_count} saved)')
+            case 'video':
+                self.SaveVideo(self.recbuf, 'Video')
+                self.recbuf = []
+            case 'afk':
+                self.recbuf = []
+                self.msgbox.MsgAppend('AFK recording disarmed')
         self.BurstLock(False)
 
     def StreamOn(self):
@@ -324,144 +405,257 @@ class Record:
         return sel
 
     def SaveShot(self):
-        if not self.auto_running and not self.StreamOn():
+        # The run button: fire the capture, or stop the running one.
+        # AFK mode may arm before any stream exists - it waits for
+        # the hunter to start streaming
+        if self.runmode is not None:
+            self.StopRun()
+            return
+        if self.capmode != 3 and not self.StreamOn():
             self.msgbox.MsgAppend('Error: No active stream')
             return
-        if int(self.autovar.get()) == 0:
+        if self.capmode == 0:
             self.SaveOne()
-            return
-        # Continuous mode: the same button starts and stops the run;
-        # a sunken camera means the burst is running
-        if self.auto_running:
-            self.StopAuto()
-        elif not self.SelScreens():
-            self.msgbox.MsgAppend('Error: No screen is selected')
         else:
-            self.auto_running = True
-            self.auto_count   = 0
-            self._last_saved  = {}
-            self.SaveButton.config(relief='sunken')
-            self.BurstLock(True)
-            self.msgbox.MsgAppend('Auto capture started')
-            self.auto_tick()
+            self.StartRun(('burst', 'video', 'afk')[self.capmode - 1])
 
-    def auto_tick(self):
-        # Save every fresh frame of the selected screen (~10/s max)
-        if not self.auto_running:
+    def StartRun(self, mode):
+        # Begin a continuous capture; the screen pick is frozen for
+        # the whole run so every video frame keeps the same size
+        sel = self.SelScreens()
+        if not sel:
+            self.msgbox.MsgAppend('Error: No screen is selected')
+            return
+        self.runmode = mode
+        self.rec_sel = sel
+        self.auto_count  = 0
+        self._last_saved = {}
+        self.recbuf = []
+        self.rec_t0 = None
+        # Arming while the hunter is already mid-round: that round
+        # is only half captured, so recording counts from the next
+        self.rec_skip = mode == 'afk' and self.hunterlock
+        self.SaveButton.config(relief='sunken')
+        self.BurstLock(True)
+        match mode:
+            case 'burst':
+                self.msgbox.MsgAppend('Auto capture started')
+            case 'video':
+                self.msgbox.MsgAppend('Recording '
+                                      f'({VIDEO_CAP:.0f} s max)...')
+            case 'afk':
+                self.msgbox.MsgAppend('AFK recording armed')
+        self.run_tick()
+
+    def FreshFrame(self):
+        # True once per new frame (or pair) of the running screens
+        if any(self.image[s] is None for s in self.rec_sel):
+            return False
+        key = tuple(id(self.image[s]) for s in self.rec_sel)
+        if key == self._last_saved.get('key'):
+            return False
+        self._last_saved['key'] = key
+        return True
+
+    def run_tick(self):
+        # One heartbeat of a continuous capture (~10/s max)
+        if self.runmode is None:
             return
         if not self.StreamOn():
-            # no stream from either side, stop capturing
-            self.StopAuto()
-            return
-        sel = self.SelScreens()
-        if not sel:
-            self.msgbox.MsgAppend('Error: No screen is selected')
-            self.StopAuto()
-            return
-        if len(sel) == 2:
-            # a fresh frame on either screen makes a new pair worth
-            # saving; SaveOne routes to combined or N3DS mode
-            pair = (id(self.image[0]), id(self.image[1]))
-            if (self.image[0] is not None and
-                    self.image[1] is not None and
-                    pair != self._last_saved.get('pair')):
-                self._last_saved['pair'] = pair
-                self.SaveOne(quiet=True)
-        else:
-            s = sel[0]
-            img = self.image[s]
-            if img is not None and id(img) != self._last_saved.get(s):
-                self._last_saved[s] = id(img)
-                self.SaveOne(quiet=True)
-        self.frame.after(100, self.auto_tick)
+            if self.runmode != 'afk':
+                self.StopRun()
+                return
+            # AFK stays armed between streams. The hunter's stream
+            # ending mid-round means the buffer holds the run that
+            # stopped the hunt - the shiny - and it never got a
+            # RoundHook, so flush it here; anything else is stale
+            if self.recbuf and self.recHunter:
+                self.RoundFlush(self.General.start_count)
+            else:
+                self.recbuf = []
+        elif self.FreshFrame():
+            match self.runmode:
+                case 'burst':
+                    shot = self.ComposeShot(self.rec_sel)
+                    if shot is not None:
+                        self.SaveImage(*shot, quiet=True)
+                case 'video' | 'afk':
+                    if self.BufferFrame() and self.runmode == 'video':
+                        t0, t1 = self.recbuf[0][0], self.recbuf[-1][0]
+                        if t1 - t0 >= VIDEO_CAP:
+                            self.StopRun()   # assembles and saves
+                            return
+        self.frame.after(100, self.run_tick)
+
+    def BufferFrame(self):
+        # Compose the current frame and buffer it as JPEG bytes;
+        # AFK mode keeps only the newest AFK_CAP seconds
+        shot = self.ComposeShot(self.rec_sel)
+        if shot is None:
+            return False
+        img = shot[0]
+        if img.mode != 'RGB':
+            # JPEG frames carry no alpha: flatten onto white
+            base = Image.new('RGB', img.size, 'white')
+            base.paste(img, mask=img.getchannel('A'))
+            img = base
+        buf = io.BytesIO()
+        img.save(buf, 'JPEG')
+        t = time.time()
+        self.recbuf.append((t, buf.getvalue()))
+        self.recHunter = self.hunterlock
+        if self.runmode == 'afk':
+            while t - self.recbuf[0][0] > AFK_CAP:
+                self.recbuf.pop(0)
+        return True
 
     def SaveOne(self, quiet=False):
-        # Save the ticked screen at full resolution; with both
-        # screens ticked the two frames merge into one picture, and
-        # N3DS mode frames them inside the console picture instead
+        # Save the composed shot of the ticked screens
         sel = self.SelScreens()
         if not sel:
             self.msgbox.MsgAppend('Error: No screen is selected')
             return
-        if self.shotmode:
-            self.SaveN3DS(sel, quiet)
-        elif len(sel) == 2:
-            self.SaveCombined(quiet)
-        else:
-            self.SaveScreen(sel[0], quiet)
+        shot = self.ComposeShot(sel)
+        if shot is not None:
+            self.SaveImage(*shot, quiet=quiet)
 
-    def SaveN3DS(self, sel, quiet=False):
-        # Paste the ticked screens into the console template; an
-        # unticked screen stays blacked out
+    def ComposeShot(self, sel):
+        # Build one picture from the selected screens in the current
+        # shot form. Returns (image, name, extension), or None when
+        # no frame has arrived yet. Console forms paste the ticked
+        # screens into the template and black out the other hole
         for s in sel:
             if self.image[s] is None:
                 self.msgbox.MsgAppend('Error: No frame received yet')
-                return
-        console = self.n3ds[self.shotmode - 1]
-        canvas = Image.new('RGBA', console.size, (0, 0, 0, 0))
-        for s in (0, 1):
-            if s in sel:
-                canvas.paste(self.image[s].convert('RGBA'),
-                             N3DS_BOX[s])
-            else:
-                canvas.paste(Image.new('RGBA', N3DS_SIZE[s],
-                                       (0, 0, 0, 255)), N3DS_BOX[s])
-        self.SaveImage(Image.alpha_composite(canvas, console),
-                       ('N3DSRed', 'N3DSBlue')[self.shotmode - 1],
-                       quiet, ext='png')
+                return None
+        if self.shotmode:
+            console = self.n3ds[self.shotmode - 1]
+            canvas = Image.new('RGBA', console.size, (0, 0, 0, 0))
+            for s in (0, 1):
+                if s in sel:
+                    canvas.paste(self.image[s].convert('RGBA'),
+                                 N3DS_BOX[s])
+                else:
+                    canvas.paste(Image.new('RGBA', N3DS_SIZE[s],
+                                           (0, 0, 0, 255)),
+                                 N3DS_BOX[s])
+            return (Image.alpha_composite(canvas, console),
+                    ('N3DSRed', 'N3DSBlue')[self.shotmode - 1], 'png')
+        if len(sel) == 2:
+            return (combine_images(self.image), 'Combined', 'jpg')
+        return (self.image[sel[0]], ('Lower', 'Upper')[sel[0]], 'jpg')
 
-    def SaveScreen(self, s, quiet=False):
-        # Save one screen's latest frame
-        img = self.image[s]
-        if img is None:
-            self.msgbox.MsgAppend('Error: No frame received yet')
-            return
-        self.SaveImage(img, ('Lower', 'Upper')[s], quiet)
-
-    def SaveCombined(self, quiet=False):
-        # Save both screens merged side by side
-        if self.image[0] is None or self.image[1] is None:
-            self.msgbox.MsgAppend('Error: No frame received yet')
-            return
-        self.SaveImage(combine_images(self.image), 'Combined', quiet)
-
-    def SaveImage(self, img, name, quiet=False, ext='jpg'):
-        # Write an image to the save folder with a running number
+    def NextFile(self, name, ext):
+        # Reserve the next numbered path in the save folder. The
+        # instance's Set number keeps parallel instances from
+        # overwriting each other's files (0 = no slot acquired)
         folder = Path(self.PathEntry.get())
         try:
             folder.mkdir(parents=True, exist_ok=True)
         except OSError:
             self.msgbox.MsgAppend('Error: Cannot use the save folder')
-            self.StopAuto()
-            return
-        # The instance's Set number keeps parallel instances from
-        # overwriting each other's files (0 = no slot acquired)
+            return None
         name = f'{name}_{self.General.lockedslot or 0}'
-        key = (str(folder), name)
+        key = (str(folder), name, ext)
         n = self._nextn.get(key, 1)
         while (folder / f'{name}_{n:04d}.{ext}').is_file():
             n = n + 1
-        img.save(folder / f'{name}_{n:04d}.{ext}')
         self._nextn[key] = n + 1
+        return folder / f'{name}_{n:04d}.{ext}'
+
+    def SaveImage(self, img, name, ext='jpg', quiet=False):
+        # Write an image to the save folder with a running number
+        path = self.NextFile(name, ext)
+        if path is None:
+            self.StopRun()
+            return
+        img.save(path)
         self.auto_count = self.auto_count + 1
         if not quiet:
-            self.msgbox.MsgAppend(f'Saved {name}_{n:04d}.{ext} '
+            self.msgbox.MsgAppend(f'Saved {path.name} '
                                   f'({img.size[0]}x{img.size[1]})')
+
+    def SaveVideo(self, buf, name, path=None):
+        # Assemble buffered JPEG frames into one video, AVI or GIF
+        # by the format button. Frame timing comes from the run's
+        # real timestamps so playback matches wall-clock time
+        if len(buf) < 2:
+            self.msgbox.MsgAppend('Error: Nothing recorded')
+            return
+        dur = buf[-1][0] - buf[0][0]
+        if path is None:
+            path = self.NextFile(name, ('avi', 'gif')[self.vidfmt])
+            if path is None:
+                return
+        frames = [f for t, f in buf]
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if self.vidfmt:
+                ts = [t for t, f in buf]
+                durs = [round((b - a) * 1000)
+                        for a, b in zip(ts, ts[1:])]
+                durs.append(round(sum(durs) / len(durs)))
+                write_gif(path, frames, durs)
+            else:
+                fps = (len(buf) - 1) / dur if dur > 0 else 10.0
+                size = Image.open(io.BytesIO(frames[0])).size
+                write_avi(path, frames, size, fps)
+        except OSError:
+            self.msgbox.MsgAppend('Error: Cannot write the video')
+            return
+        self.msgbox.MsgAppend(f'Saved {path.name} '
+                              f'({len(buf)} frames, {dur:.1f} s)')
+
+    def RoundEnd(self, count):
+        # Hunter thread: one hunt round just finished. An ordinary
+        # round is only worth keeping when the user wants every
+        # round; the shiny run never reaches here (the hunt stops
+        # without counting) and is flushed by run_tick instead
+        if self.runmode != 'afk' or not self.recbuf:
+            return
+        if self.rec_skip:
+            # the half-captured round armed into: drop it, the next
+            # round is the first complete one
+            self.rec_skip = False
+            self.recbuf = []
+            return
+        if int(self.shinyvar.get()) == 1:
+            self.recbuf = []
+            return
+        self.RoundFlush(count)
+
+    def RoundFlush(self, count):
+        # Hand the buffer to a writer thread so neither the hunt
+        # nor the GUI waits on video assembly; the file carries the
+        # round number, matching the hunter's screenshots
+        buf, self.recbuf = self.recbuf, []
+        path = (Path(self.PathEntry.get()) /
+                f'AFK_{self.General.lockedslot or 0}_{count:04d}.'
+                f'{("avi", "gif")[self.vidfmt]}')
+        threading.Thread(target=self.SaveVideo, name='afk-writer',
+                         args=(buf, 'AFK', path), daemon=True).start()
 
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct
-        self.General.data[i].recpath  = self.PathEntry.get()
-        self.General.data[i].shotmode = self.shotmode
-        self.General.data[i].recauto  = int(self.autovar.get())
+        self.General.data[i].recpath   = self.PathEntry.get()
+        self.General.data[i].shotmode  = self.shotmode
+        self.General.data[i].capmode   = self.capmode
+        self.General.data[i].onlyshiny = int(self.shinyvar.get())
+        self.General.data[i].vidfmt    = self.vidfmt
 
     def data2GUI(self, i):
         # For each tab, setting data struct to GUI; an empty saved
-        # path keeps the default folder chosen at startup
+        # path keeps the default folder chosen at startup. Loading a
+        # Set ends any running capture first
+        self.StopRun()
         d = self.General.data[i]
         if d.recpath:
             self.PathEntry.delete(0, 'end')
             self.PathEntry.insert(0, d.recpath)
         self.shotmode = d.shotmode if d.shotmode in (0, 1, 2) else 0
         self.ModeShow()
-        self.autovar.set(1 if d.recauto else 0)
-        self.autoswitch()
+        self.capmode = d.capmode if d.capmode in (0, 1, 2, 3) else 0
+        self.shinyvar.set(1 if d.onlyshiny else 0)
+        self.vidfmt = d.vidfmt if d.vidfmt in (0, 1) else 0
+        self.FmtShow()
+        self.CapShow()
