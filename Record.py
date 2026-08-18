@@ -77,15 +77,15 @@ class Record:
                                        image=self.bitmap['TVoff'],
                                        command=self.Connect)
         self.ConnectButton .pack(padx=3, pady=0, side='left')
-        self.SaveButton = tk.Button(self.frameBtn,
-                                    image=self.bitmap['camera'],
-                                    command=self.SaveShot)
-        self.SaveButton .pack(padx=6, pady=0, side='left')
         # Shot mode: each click cycles picture-only / red / blue
         self.ModeButton = tk.Button(self.frameBtn,
                                     image=self.bitmap['image'],
                                     command=self.ModeSwitch)
-        self.ModeButton .pack(padx=3, pady=0, side='left')
+        self.ModeButton .pack(padx=6, pady=0, side='left')
+        self.SaveButton = tk.Button(self.frameBtn,
+                                    image=self.bitmap['camera'],
+                                    command=self.SaveShot)
+        self.SaveButton .pack(padx=3, pady=0, side='left')
         self.autovar = tk.IntVar()
         self.autobtn = tk.Checkbutton(self.frameBtn, text='Auto',
                                       variable=self.autovar,
@@ -430,6 +430,9 @@ class Record:
             self.msgbox.MsgAppend('Error: Cannot use the save folder')
             self.StopAuto()
             return
+        # The instance's Set number keeps parallel instances from
+        # overwriting each other's files (0 = no slot acquired)
+        name = f'{name}_{self.General.lockedslot or 0}'
         key = (str(folder), name)
         n = self._nextn.get(key, 1)
         while (folder / f'{name}_{n:04d}.{ext}').is_file():

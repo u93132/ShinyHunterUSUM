@@ -170,6 +170,7 @@ class Battle(TabBase):
                 else:
                     combine_images(self.image).save(self.General.shotpath /
                           f'Debug_Encounter_'
+                          f'{self.General.lockedslot or 0}_'
                           f'{self.General.start_count:04d}_'
                           f'{t_use:03d}.jpg')
                     self.msgbox.MsgAppend(
@@ -182,7 +183,8 @@ class Battle(TabBase):
                     f' - {current_time} - {int(t_use)} msec' )
             if t_use > self.chat:
                 img0.save(self.General.shotpath /
-                          f'Encounter_{self.General.start_count:04d}.jpg')
+                          f'Encounter_{self.General.lockedslot or 0}_'
+                          f'{self.General.start_count:04d}.jpg')
                 self.ir.return_control()
                 self.General.ConnectState(0)
                 self.General.ConnectState(-1)

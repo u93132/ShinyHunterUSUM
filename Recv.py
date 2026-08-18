@@ -346,6 +346,7 @@ class Recv(TabBase):
                 else:
                     combine_images(self.image).save(self.General.shotpath /
                           f'Debug_Recv_'
+                          f'{self.General.lockedslot or 0}_'
                           f'{self.General.start_count:04d}_'
                           f'{res:03d}.jpg')
                     self.msgbox.MsgAppend(
@@ -361,7 +362,8 @@ class Recv(TabBase):
             limit = 0.4 if boost else self.threshold
             if res < limit:
                 img0.save(self.General.shotpath /
-                          f'Recv_{self.General.start_count:04d}.jpg')
+                          f'Recv_{self.General.lockedslot or 0}_'
+                          f'{self.General.start_count:04d}.jpg')
                 self.ir.return_control()
                 self.General.ConnectState(0)
                 self.General.ConnectState(-1)
