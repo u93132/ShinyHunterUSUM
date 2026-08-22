@@ -397,19 +397,22 @@ class Record:
             case 'afk':
                 self.recbuf = []
                 self.msgbox.MsgAppend('AFK recording disarmed')
+        # The capture is over: the run button pops right away...
+        self.SaveButton.config(relief='raised')
         self.Finish()
 
     def Finish(self):
-        # Release the page once no writer thread is left; until then
-        # the run button stays sunken and the controls locked, so
-        # nothing can start (or exit) before the file is on disk
+        # ...but stays greyed out, with the rest of the page locked,
+        # until no writer thread is left - nothing can start (or
+        # exit) before the file is on disk
         self.writers = [w for w in self.writers if w.is_alive()]
         if self.writers:
             self.writing = True
+            self.SaveButton.config(state='disabled')
             self.frame.after(200, self.Finish)
             return
         self.writing = False
-        self.SaveButton.config(relief='raised')
+        self.SaveButton.config(state='normal')
         self.BurstLock(False)
 
     def StartWriter(self, buf, name, path=None):
