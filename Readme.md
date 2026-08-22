@@ -22,9 +22,14 @@ stable than it was.
 5. Auto screenshot when a shiny appears
 6. Real-time streaming, plus a Record page for screenshots, bursts and videos — including one video per hunt round
 
-Only the English version of US/UM is supported. Sun / Moon are supported for
-move-triggered no-aura battles and for Type: Null at Aether; the game version is
-detected automatically on the first reset.
+Only the English version of the games is supported. The game version is
+detected automatically on the first reset:
+
+| Hunt | US/UM | S/M |
+|------|:-----:|:---:|
+| Battle | all four trigger / type combinations | Move + no aura only |
+| Recv | every target | Type: Null (Aether) only |
+| Lotto | ✓ | – |
 
 ## Limitations
 
@@ -105,11 +110,15 @@ Save right beside (as close as possible to) the event trigger point, or in the m
 
 ### Receiving Pokémon
 
-- **Poipole** — save in front of the NPC that gives you Poipole.
-- **Type: Null (Poni / Aether)** — save on the left of the event trigger point.
-- **Rowlet / Litten / Popplio** — save in front of the grass where the event triggers.
-- **Pikachu** — save in front of the NPC.
-- **Boost** — reads the shiny colour straight from the cutscene for Poipole, Type: Null and the starters instead of opening the summary page: much faster per round.
+| Target | Where to save | US/UM | S/M |
+|--------|---------------|:-----:|:---:|
+| **Poipole** | in front of the NPC that gives you Poipole | ✓ | – |
+| **Type: Null (Poni)** | on the left of the event trigger point | ✓ | – |
+| **Type: Null (Aether)** | in front of the NPC | ✓ | ✓ |
+| **Rowlet / Litten / Popplio** | in front of the grass where the event triggers | ✓ | – |
+| **Pikachu** | in front of the NPC | ✓ | – |
+
+**Boost** reads the shiny colour straight from the cutscene for Poipole, Type: Null and the starters instead of opening the summary page: much faster per round. Both Type: Null routes share the same check, and it is calibrated on US/UM and S/M footage alike.
 
 ### Roto Loto
 
