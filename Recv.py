@@ -364,6 +364,8 @@ class Recv(TabBase):
                 img0.save(self.General.shotpath /
                           f'Recv_{self.General.lockedslot or 0}_'
                           f'{self.General.start_count:04d}.jpg')
+                # Let the shiny play on for the recorder's tail
+                time.sleep(self.linger)
                 self.ir.return_control()
                 self.General.ConnectState(0)
                 self.General.ConnectState(-1)

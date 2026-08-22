@@ -11,6 +11,7 @@ class Battle(TabBase):
     tabname   = 'Battle'
     threshold = 0.10    # for image identification
     logname   = 'Encounter'
+    linger    = 15.0    # the battle intro runs long: keep streaming
 
     def __init__(self, nb, General, msgbox, image):
 
@@ -185,6 +186,8 @@ class Battle(TabBase):
                 img0.save(self.General.shotpath /
                           f'Encounter_{self.General.lockedslot or 0}_'
                           f'{self.General.start_count:04d}.jpg')
+                # Let the shiny play on for the recorder's tail
+                time.sleep(self.linger)
                 self.ir.return_control()
                 self.General.ConnectState(0)
                 self.General.ConnectState(-1)

@@ -14,6 +14,9 @@ class TabBase:
     tabname   = ''     # subclass sets: which notebook tab this is
     threshold = 0.10   # subclass sets: image identification threshold
     logname   = ''     # subclass sets: message box line prefix
+    # Seconds to keep streaming after a shiny before disconnecting:
+    # the AFK recorder's shiny video gets this much extra footage
+    linger    = 3.0
 
     def __init__(self, nb, General, msgbox, image):
         self.nb      = nb
