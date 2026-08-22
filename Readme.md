@@ -74,7 +74,7 @@ Setting the 3DS clock rate to 268 MHz makes crashes rarer.
 2. Enter the 3DS IP in **3DS IP**.
 3. Set the counter.
 4. Pick a hunt on the Tab radio buttons and configure it on its page (see *Detail settings*).
-5. Click the 3DS icon. The log walks through the five steps — TCP link, stream setup, UDP listener, input redirection, hunt — and the window turns **yellow** (Battle), **cyan** (Recv) or **lime** (Lotto) when the hunt is done, **red** if the connection is lost.
+5. Click the 3DS icon ![](image0/General/connect.gif). The log walks through the five steps — TCP link, stream setup, UDP listener, input redirection, hunt — and the window turns **yellow** (Battle), **cyan** (Recv) or **lime** (Lotto) when the hunt is done, **red** if the connection is lost.
 6. Click the 3DS icon again to disconnect whenever you want to pause.
 
 - Note 1: the physical buttons of the 3DS are locked during the hunt.
@@ -129,13 +129,13 @@ Save right beside (as close as possible to) the event trigger point, or in the m
 
 The Record page captures the stream — during a hunt, or on its own.
 
-1. When the AFK hunt is running the stream is ready to be recorded; the TV icon mirrors it.
-2. Without a hunt, click the TV icon to start the Record page's own stream.
-3. Buttons, left to right:
-   - **Shot form** — picture only → red console → blue console. The console forms paste the ticked screens into an N3DS XL picture at native resolution (the other screen blacked out) and save as PNG.
-   - **Capture mode** — one shot → burst → video (60 s max) → AFK.
-   - **Format** (video modes) — AVI (MJPEG, the stream's own quality) → GIF → APNG.
-   - **Run** — fires the capture; for burst, video and AFK it starts and stops.
+1. When the AFK hunt is running the stream is ready to be recorded; the TV icon ![](image0/Record/TVon.gif) mirrors it.
+2. Without a hunt, click the TV icon ![](image0/Record/TVoff.gif) to start the Record page's own stream.
+3. Buttons, left to right (each click cycles to the next icon):
+   - **Shot form** — ![](image0/Record/image.gif) picture only → ![](image0/Record/redconsole.gif) red console → ![](image0/Record/blueconsole.gif) blue console. The console forms paste the ticked screens into an N3DS XL picture at native resolution (the other screen blacked out) and save as PNG.
+   - **Capture mode** — ![](image0/Record/camera.gif) one shot → ![](image0/Record/auto.gif) burst → ![](image0/Record/video.gif) video (60 s max) → ![](image0/Record/afk.gif) AFK.
+   - **Format** (video modes) — ![](image0/Record/aviicon.gif) AVI (MJPEG, the stream's own quality) → ![](image0/Record/gificon.gif) GIF → ![](image0/Record/apngicon.gif) APNG.
+   - **Run** ![](image0/Record/run.png) — fires the capture; for burst, video and AFK it starts and stops. It pops up when the capture ends and stays greyed out until the file is written.
    - **Only shiny run** (AFK) — keep just the round that found the shiny (default), or every round.
 4. The **Screen** checkboxes on the main window choose which screens go in; both ticked gives one combined picture.
 5. **AFK mode** records one video per hunt round, from the save-data screen to the shiny check (the newest 200 s of a round are kept, so a frozen game cannot fill memory). When the shiny shows up the hunt lingers a few seconds so the video carries the animation, then the recorder disarms together with the hunt. Arm it before connecting or in the middle of a hunt — recording then starts with the next round.
