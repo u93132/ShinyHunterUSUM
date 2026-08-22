@@ -61,6 +61,7 @@ class General:
         self.udp_socket  = None    # pre assign the NTR udp object
         self.RecordHook = None     # set by the GUI once Record exists
         self.RoundHook  = None     # called when a hunt round finishes
+        self.RoundStartHook = None # called when a hunt round begins
         self.start_count = 1
         # Load images
         self.bitmap = load_bitmaps(f'image0/{self.tabname}')

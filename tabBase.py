@@ -128,6 +128,11 @@ class TabBase:
         # Enter the game, and check USUM/SM at the starting page
         gametype = self.wait_for((164,184,187,195), self.mys, 11,
                                  button=HIDButtons.START, n=30, ts=0.2)
+        # The save-data screen comes next: a new round begins here,
+        # so the recorder drops the reset footage buffered so far
+        # and the round video opens on the save file
+        if self.General.RoundStartHook is not None:
+            self.General.RoundStartHook()
         for i in range(2): self.click(HIDButtons.A)
         time.sleep(5.0)
         return gametype

@@ -613,18 +613,28 @@ class Record:
         self.msgbox.MsgAppend(f'Saved {path.name} '
                               f'({len(buf)} frames, {dur:.1f} s)')
 
+    def RoundStart(self):
+        # Hunter thread: the soft reset reached the save-data screen.
+        # Whatever was buffered since the last round ended is reset
+        # footage, not part of any round - drop it so each video
+        # opens on the save file and runs to the shiny check
+        if self.runmode == 'afk':
+            self.recbuf = []
+
     def RoundEnd(self, count):
         # Hunter thread: one hunt round just finished. An ordinary
         # round is only worth keeping when the user wants every
         # round; the shiny run never reaches here (the hunt stops
         # without counting) and is flushed by run_tick instead
-        if self.runmode != 'afk' or not self.recbuf:
+        if self.runmode != 'afk':
             return
         if self.rec_skip:
             # the half-captured round armed into: drop it, the next
             # round is the first complete one
             self.rec_skip = False
             self.recbuf = []
+            return
+        if not self.recbuf:
             return
         if int(self.shinyvar.get()) == 1:
             self.recbuf = []
