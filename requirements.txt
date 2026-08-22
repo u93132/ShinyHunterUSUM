@@ -1,0 +1,2 @@
+# Python 3.10+ (tkinter ships with the Windows installer)
+Pillow>=9.1
