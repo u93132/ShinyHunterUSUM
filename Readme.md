@@ -115,7 +115,7 @@ Save right beside (as close as possible to) the event trigger point, or in the m
 | **Poipole** | in front of the NPC that gives you Poipole | ✓ | – |
 | **Type: Null (Poni)** | on the left of the event trigger point | ✓ | – |
 | **Type: Null (Aether)** | in front of the NPC | ✓ | ✓ |
-| **Rowlet / Litten / Popplio** | in front of the grass where the event triggers | ✓ | – |
+| **Rowlet / Litten / Popplio** | in front of the grass where the event triggers | ✓ | not yet supported |
 | **Pikachu** | in front of the NPC | ✓ | – |
 
 **Boost** reads the shiny colour straight from the cutscene for Poipole, Type: Null and the starters instead of opening the summary page: much faster per round. Both Type: Null routes share the same check, and it is calibrated on US/UM and S/M footage alike.
