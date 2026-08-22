@@ -5,7 +5,7 @@ from tkinter import filedialog
 
 from PIL import Image
 from functions import (check, i2L, load_bitmaps, combine_images,
-                       resource_path, write_avi, write_anim)
+                       resource_path, write_avi, write_anim, flatten)
 from boxBase import ToolTip
 
 # Screen hole positions inside the N3DS console template: the holes
@@ -384,7 +384,8 @@ class Record:
                 self.msgbox.MsgAppend('Auto capture stopped '
                                       f'({self.auto_count} saved)')
             case 'video':
-                self.SaveVideo(self.recbuf, 'Video')
+                self.SaveVideo(self.recbuf, 'Video',
+                               self.rec_sel, self.rec_form)
                 self.recbuf = []
             case 'afk':
                 self.recbuf = []
@@ -428,8 +429,10 @@ class Record:
         if not sel:
             self.msgbox.MsgAppend('Error: No screen is selected')
             return
-        self.runmode = mode
-        self.rec_sel = sel
+        self.runmode  = mode
+        self.rec_sel  = sel
+        self.rec_form = self.shotmode   # frozen too: videos compose
+                                        # their frames at assembly
         self.auto_count  = 0
         self._last_saved = {}
         self.recbuf = []
@@ -494,21 +497,17 @@ class Record:
         self.frame.after(100, self.run_tick)
 
     def BufferFrame(self):
-        # Compose the current frame and buffer it as JPEG bytes;
-        # AFK mode keeps only the newest AFK_CAP seconds
-        shot = self.ComposeShot(self.rec_sel)
-        if shot is None:
-            return False
-        img = shot[0]
-        if img.mode != 'RGB':
-            # JPEG frames carry no alpha: flatten onto white
-            base = Image.new('RGB', img.size, 'white')
-            base.paste(img, mask=img.getchannel('A'))
-            img = base
-        buf = io.BytesIO()
-        img.save(buf, 'JPEG')
+        # Buffer the running screens as raw JPEG bytes, one per
+        # screen; the picture is composed at assembly, so console
+        # forms keep their transparency for APNG. AFK mode keeps
+        # only the newest AFK_CAP seconds
+        shot = {}
+        for s in self.rec_sel:
+            buf = io.BytesIO()
+            self.image[s].save(buf, 'JPEG')
+            shot[s] = buf.getvalue()
         t = time.time()
-        self.recbuf.append((t, buf.getvalue()))
+        self.recbuf.append((t, shot))
         self.recHunter = self.hunterlock
         if self.runmode == 'afk':
             while t - self.recbuf[0][0] > AFK_CAP:
@@ -526,30 +525,38 @@ class Record:
             self.SaveImage(*shot, quiet=quiet)
 
     def ComposeShot(self, sel):
-        # Build one picture from the selected screens in the current
-        # shot form. Returns (image, name, extension), or None when
-        # no frame has arrived yet. Console forms paste the ticked
-        # screens into the template and black out the other hole
+        # The live picture of the selected screens in the current
+        # shot form, or None when no frame has arrived yet
         for s in sel:
             if self.image[s] is None:
                 self.msgbox.MsgAppend('Error: No frame received yet')
                 return None
-        if self.shotmode:
-            console = self.n3ds[self.shotmode - 1]
+        return self.Compose({s: self.image[s] for s in sel},
+                            sel, self.shotmode)
+
+    def Compose(self, images, sel, form):
+        # Build one picture from `images` (screen -> PIL image) in
+        # shot form `form`; shared by live shots and video assembly.
+        # Returns (image, name, extension). Console forms paste the
+        # selected screens into the template and black out the other
+        # hole, keeping the transparency around the body
+        if form:
+            console = self.n3ds[form - 1]
             canvas = Image.new('RGBA', console.size, (0, 0, 0, 0))
             for s in (0, 1):
                 if s in sel:
-                    canvas.paste(self.image[s].convert('RGBA'),
+                    canvas.paste(images[s].convert('RGBA'),
                                  N3DS_BOX[s])
                 else:
                     canvas.paste(Image.new('RGBA', N3DS_SIZE[s],
                                            (0, 0, 0, 255)),
                                  N3DS_BOX[s])
             return (Image.alpha_composite(canvas, console),
-                    ('N3DSRed', 'N3DSBlue')[self.shotmode - 1], 'png')
+                    ('N3DSRed', 'N3DSBlue')[form - 1], 'png')
         if len(sel) == 2:
-            return (combine_images(self.image), 'Combined', 'jpg')
-        return (self.image[sel[0]], ('Lower', 'Upper')[sel[0]], 'jpg')
+            return (combine_images([images[0], images[1]]),
+                    'Combined', 'jpg')
+        return (images[sel[0]], ('Lower', 'Upper')[sel[0]], 'jpg')
 
     def NextFile(self, name, ext):
         # Reserve the next numbered path in the save folder. The
@@ -581,10 +588,13 @@ class Record:
             self.msgbox.MsgAppend(f'Saved {path.name} '
                                   f'({img.size[0]}x{img.size[1]})')
 
-    def SaveVideo(self, buf, name, path=None):
-        # Assemble buffered JPEG frames into one video, AVI or GIF
-        # by the format button. Frame timing comes from the run's
-        # real timestamps so playback matches wall-clock time
+    def SaveVideo(self, buf, name, sel, form, path=None):
+        # Assemble the buffered screen frames into one video in the
+        # format button's format, composing each frame in shot form
+        # `form` on the way. Frame timing comes from the run's real
+        # timestamps so playback matches wall-clock time. AVI
+        # flattens console forms onto white; GIF and APNG keep the
+        # transparency around the body
         if len(buf) < 2:
             self.msgbox.MsgAppend('Error: Nothing recorded')
             return
@@ -593,20 +603,34 @@ class Record:
             path = self.NextFile(name, self.fmtext[self.vidfmt])
             if path is None:
                 return
-        frames = [f for t, f in buf]
+        shots = [shot for t, shot in buf]
+
+        def make(shot):
+            images = {s: Image.open(io.BytesIO(b))
+                      for s, b in shot.items()}
+            return self.Compose(images, sel, form)[0]
+
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            if self.vidfmt:
-                ts = [t for t, f in buf]
-                durs = [round((b - a) * 1000)
-                        for a, b in zip(ts, ts[1:])]
-                durs.append(round(sum(durs) / len(durs)))
-                write_anim(path, frames, durs,
-                           ('GIF', 'PNG')[self.vidfmt - 1])
-            else:
-                fps = (len(buf) - 1) / dur if dur > 0 else 10.0
-                size = Image.open(io.BytesIO(frames[0])).size
-                write_avi(path, frames, size, fps)
+            match self.vidfmt:
+                case 0:
+                    frames = []
+                    for shot in shots:
+                        jpg = io.BytesIO()
+                        flatten(make(shot)).save(jpg, 'JPEG')
+                        frames.append(jpg.getvalue())
+                    fps = (len(buf) - 1) / dur if dur > 0 else 10.0
+                    size = Image.open(io.BytesIO(frames[0])).size
+                    write_avi(path, frames, size, fps)
+                case 1 | 2:
+                    ts = [t for t, shot in buf]
+                    durs = [round((b - a) * 1000)
+                            for a, b in zip(ts, ts[1:])]
+                    durs.append(round(sum(durs) / len(durs)))
+                    # both keep the console's transparency: APNG in
+                    # full, GIF as 1-bit (edge pixels turn opaque)
+                    write_anim(path, shots, make, durs,
+                               ('GIF', 'PNG')[self.vidfmt - 1])
         except OSError:
             self.msgbox.MsgAppend('Error: Cannot write the video')
             return
@@ -650,7 +674,8 @@ class Record:
                 f'AFK_{self.General.lockedslot or 0}_{count:04d}.'
                 f'{self.fmtext[self.vidfmt]}')
         threading.Thread(target=self.SaveVideo, name='afk-writer',
-                         args=(buf, 'AFK', path), daemon=True).start()
+                         args=(buf, 'AFK', self.rec_sel, self.rec_form,
+                               path), daemon=True).start()
 
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct
