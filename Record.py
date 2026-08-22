@@ -43,6 +43,8 @@ class Record:
         self.rec_sel = []  # screens fixed for the whole run
         self.recHunter = False  # buffer fed by the hunter's stream
         self.rec_skip  = False  # armed mid-round: wait for the next
+        self.writers = []       # video writer threads still running
+        self.writing = False    # page stays locked until they end
         # own frame-assembly state, separate from the app's stream
         self.bytes = [b'', b'']
         self.frame_curr = -1
@@ -167,10 +169,14 @@ class Record:
             self.Disconnected()
             self.msgbox.MsgAppend('Record stopped')
 
+    def Busy(self):
+        # A capture is running, or its video is still being written
+        return self.runmode is not None or self.writing
+
     def TVstate(self):
         # Single authority over the TV button: it is enabled only
         # when the hunter does not own the stream and no capture runs
-        if self.hunterlock or self.runmode is not None:
+        if self.hunterlock or self.Busy():
             self.ConnectButton.config(state='disabled')
         else:
             self.ConnectButton.config(state='normal')
@@ -331,13 +337,13 @@ class Record:
     def ShinyState(self):
         # The only-shiny switch matters only in AFK mode and is
         # frozen while a capture runs
-        on = self.capmode == 3 and self.runmode is None
+        on = self.capmode == 3 and not self.Busy()
         self.shinybtn.config(state='normal' if on else 'disabled')
 
     def FmtState(self):
         # The format button matters only in the video modes and is
         # frozen while a capture runs
-        on = self.capmode >= 2 and self.runmode is None
+        on = self.capmode >= 2 and not self.Busy()
         self.FmtButton.config(state='normal' if on else 'disabled')
 
     def FmtShow(self):
@@ -376,21 +382,45 @@ class Record:
         self.FmtState()
 
     def StopRun(self):
-        # End whatever capture is running; a video saves its frames
+        # End whatever capture is running; a video hands its frames
+        # to a writer thread, and the page only unlocks once every
+        # writer has finished
         mode, self.runmode = self.runmode, None
-        self.SaveButton.config(relief='raised')
         match mode:
             case 'burst':
                 self.msgbox.MsgAppend('Auto capture stopped '
                                       f'({self.auto_count} saved)')
             case 'video':
-                self.SaveVideo(self.recbuf, 'Video',
-                               self.rec_sel, self.rec_form)
-                self.recbuf = []
+                buf, self.recbuf = self.recbuf, []
+                self.msgbox.MsgAppend('Recording stopped, writing...')
+                self.StartWriter(buf, 'Video')
             case 'afk':
                 self.recbuf = []
                 self.msgbox.MsgAppend('AFK recording disarmed')
+        self.Finish()
+
+    def Finish(self):
+        # Release the page once no writer thread is left; until then
+        # the run button stays sunken and the controls locked, so
+        # nothing can start (or exit) before the file is on disk
+        self.writers = [w for w in self.writers if w.is_alive()]
+        if self.writers:
+            self.writing = True
+            self.frame.after(200, self.Finish)
+            return
+        self.writing = False
+        self.SaveButton.config(relief='raised')
         self.BurstLock(False)
+
+    def StartWriter(self, buf, name, path=None):
+        # Assemble and save a video off the GUI thread; the screen
+        # pick and shot form travel with it so a later run cannot
+        # change them under the writer
+        w = threading.Thread(target=self.SaveVideo, name='video-writer',
+                             args=(buf, name, self.rec_sel,
+                                   self.rec_form, path), daemon=True)
+        self.writers.append(w)
+        w.start()
 
     def StreamOn(self):
         # A stream is running: ours or the hunter's
@@ -413,6 +443,9 @@ class Record:
         # the hunter to start streaming
         if self.runmode is not None:
             self.StopRun()
+            return
+        if self.writing:
+            self.msgbox.MsgAppend('Error: Still writing the video')
             return
         if self.capmode != 3 and not self.StreamOn():
             self.msgbox.MsgAppend('Error: No active stream')
@@ -673,9 +706,7 @@ class Record:
         path = (Path(self.PathEntry.get()) /
                 f'AFK_{self.General.lockedslot or 0}_{count:04d}.'
                 f'{self.fmtext[self.vidfmt]}')
-        threading.Thread(target=self.SaveVideo, name='afk-writer',
-                         args=(buf, 'AFK', self.rec_sel, self.rec_form,
-                               path), daemon=True).start()
+        self.StartWriter(buf, 'AFK', path)
 
     def GUI2data(self, i):
         # For each tab, GUI to setting data struct
