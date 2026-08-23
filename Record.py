@@ -128,22 +128,24 @@ class Record:
         self.ConnTip = ToolTip(self.ConnectButton, 'Stream is off')
         self.SaveTip = ToolTip(self.SaveButton, 'Run the capture')
         # AFK only: keep just the round that found the shiny
+        self.frameChk = tk.Frame(self.frame)
+        self.frameChk .grid(row=2, column=0, padx=3, pady=4, sticky='w')
         self.shinyvar = tk.IntVar()
         self.shinyvar.set(1)
-        self.shinybtn = tk.Checkbutton(self.frame,
+        self.shinybtn = tk.Checkbutton(self.frameChk,
                                        text='Only shiny run',
                                        variable=self.shinyvar)
-        self.shinybtn .grid(row=2, column=0, padx=6, pady=0,
+        self.shinybtn .grid(row=0, column=0, padx=6, pady=0,
                             sticky='w')
         ToolTip(self.shinybtn,
                 'Keep only the round that found the shiny')
         # Save a debug screenshot whenever a hunt round errors
         self.dbgvar = tk.IntVar()
-        self.dbgbtn = tk.Checkbutton(self.frame,
+        self.dbgbtn = tk.Checkbutton(self.frameChk,
                                      text='Debug screenshot',
                                      variable=self.dbgvar,
                                      command=self.DebugSwitch)
-        self.dbgbtn .grid(row=2, column=1, padx=6, pady=0,
+        self.dbgbtn .grid(row=0, column=1, padx=6, pady=0,
                           sticky='w')
         ToolTip(self.dbgbtn,
                 'Save a screenshot next to the app on each hunt error')
