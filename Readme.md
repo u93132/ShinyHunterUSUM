@@ -16,7 +16,8 @@ stable than it was.
 ## Demo
 
 One hunt round captured by the Record tab's AFK mode, framed in the New 3DS XL
-console picture:
+console picture (This is compressed to GIF for the purpose of demo. You can 
+have high quality recording using this app):
 
 ![AFK recording demo](demo/demo_afk.gif)
 
