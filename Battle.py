@@ -25,6 +25,9 @@ class Battle(TabBase):
         self.go   = img2BW(Image.open(self.picpath/'go.bmp'))
         self.chat = 2700           # 2700ms for normal pokemon
 
+        self.cropbox_ap = [(35,205,235,218),(35,198,235,211)]
+        self.cropbox_go = [(13,203,33,215), (11,196,31,208)]
+
         #########################################################################
         ################################ Objects  ###############################
         #########################################################################
@@ -94,7 +97,7 @@ class Battle(TabBase):
             text=self.desclist[(int(self.movevar.get()),
                                 int(self.auravar.get()))])
 
-    def findtime(self):
+    def findtime(self,gametype):
         # Return (result, screenshot when the pokemon appears)
         # float result: the time between 'appear' and 'Go!' in msec
         # int   result: 101 = they never appeared (error)
@@ -113,20 +116,16 @@ class Battle(TabBase):
                 # Talk to the pokemon
                 self.click(HIDButtons.A)
             img0 = self.image[1]
-            img1 = img0.crop((35,205,235,218))
-            img2 = img0.crop((35,198,235,211))
-            res = min(matchtemplate(img2BW(img1), self.ap, 13, 200-24),
-                      matchtemplate(img2BW(img2), self.ap, 13, 200-24))
+            img1 = img0.crop(self.cropbox_ap[gametype-1])
+            res = matchtemplate(img2BW(img1), self.ap, 13, 200-24)
             #print(res)
             if res < self.threshold:
                 t_app = time.time()
                 #print("Found app!")
                 for j in range(100):
-                    img3 = self.image[1]
-                    img4 = img3.crop((13,203,33,215))
-                    img5 = img3.crop((11,196,31,208))
-                    res = min(matchtemplate(img2BW(img4), self.go, 12, 0),
-                              matchtemplate(img2BW(img5), self.go, 12, 0))
+                    img2 = self.image[1]
+                    img3 = img2.crop(self.cropbox_go[gametype-1])
+                    res = matchtemplate(img2BW(img3), self.go, 12, 0)
                     if res < self.threshold:
                         t_go = time.time()
                         #print("Found go!")
@@ -151,7 +150,7 @@ class Battle(TabBase):
         # Start Shiny Hunting
         while True:
             # Check if it is shiny
-            t_use, img0 = self.findtime()
+            t_use, img0 = self.findtime(gametype)
             self.ir.clear_everything()
             self.ir.circle_pad_neutral()
             now = datetime.now()
