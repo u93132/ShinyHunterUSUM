@@ -29,6 +29,8 @@ class Setting:
     # Which screens are ticked on the main window (off by default)
     upper:     int = 0
     lower:     int = 0
+    # Save a debug screenshot on each hunt error (off by default)
+    debugshot: int = 0
 
 def lock_slot(folder, num):
     # Try to lock settings slot `num`. Returns the open lock handle,
@@ -66,6 +68,7 @@ class General:
         self.RoundHook  = None     # called when a hunt round finishes
         self.RoundStartHook = None # called when a hunt round begins
         self.RecordBusyHook = None # True while a video is still saving
+        self.debugshot  = False    # live: save debug shots on error
         self.start_count = 1
         # Load images
         self.bitmap = load_bitmaps(f'image0/{self.tabname}')
@@ -327,7 +330,7 @@ class General:
                     slot.capmode = int(temp[1])
                 case ('count' | 'currtab' | 'move' | 'aura' | 'recv'
                       | 'shotmode' | 'capmode' | 'onlyshiny'
-                      | 'vidfmt' | 'upper' | 'lower'):
+                      | 'vidfmt' | 'upper' | 'lower' | 'debugshot'):
                     setattr(slot, temp[0], int(temp[1]))
 
     def LoadSetting(self):
@@ -359,6 +362,7 @@ class General:
             f.write(f'vidfmt={d.vidfmt}\n')
             f.write(f'upper={d.upper}\n')
             f.write(f'lower={d.lower}\n')
+            f.write(f'debugshot={d.debugshot}\n')
 
     def WriteSetting(self, data):
         # Write the selected slot to its own file; the other slots

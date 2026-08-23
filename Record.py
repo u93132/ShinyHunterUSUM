@@ -137,6 +137,16 @@ class Record:
                             sticky='w')
         ToolTip(self.shinybtn,
                 'Keep only the round that found the shiny')
+        # Save a debug screenshot whenever a hunt round errors
+        self.dbgvar = tk.IntVar()
+        self.dbgbtn = tk.Checkbutton(self.frame,
+                                     text='Debug screenshot',
+                                     variable=self.dbgvar,
+                                     command=self.DebugSwitch)
+        self.dbgbtn .grid(row=2, column=1, padx=6, pady=0,
+                          sticky='w')
+        ToolTip(self.dbgbtn,
+                'Save a screenshot next to the app on each hunt error')
         self.ShinyState()
         self.FmtState()
 
@@ -673,6 +683,11 @@ class Record:
         self.msgbox.MsgAppend(f'Saved {path.name} '
                               f'({len(buf)} frames, {dur:.1f} s)')
 
+    def DebugSwitch(self):
+        # Mirror the checkbox onto the live flag the hunt reads, so
+        # toggling mid-hunt takes effect at once
+        self.General.debugshot = int(self.dbgvar.get()) == 1
+
     def PendingVideo(self):
         # True while an AFK shiny video is still to be flushed (the
         # hunter's stream just ended with frames buffered) or is
@@ -727,6 +742,7 @@ class Record:
         self.General.data[i].capmode   = self.capmode
         self.General.data[i].onlyshiny = int(self.shinyvar.get())
         self.General.data[i].vidfmt    = self.vidfmt
+        self.General.data[i].debugshot = int(self.dbgvar.get())
 
     def data2GUI(self, i):
         # For each tab, setting data struct to GUI; an empty saved
@@ -743,4 +759,6 @@ class Record:
         self.shinyvar.set(1 if d.onlyshiny else 0)
         self.vidfmt = d.vidfmt if d.vidfmt in (0, 1, 2) else 0
         self.FmtShow()
+        self.dbgvar.set(1 if d.debugshot else 0)
+        self.DebugSwitch()
         self.CapShow()

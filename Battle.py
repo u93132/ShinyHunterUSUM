@@ -168,7 +168,9 @@ class Battle(TabBase):
                         ' - N3DS crush?' )
                     break
                 else:
-                    combine_images(self.image).save(self.General.shotpath /
+                    if self.General.debugshot:
+                        combine_images(self.image).save(
+                          self.General.shotpath /
                           f'Debug_Encounter_'
                           f'{self.General.lockedslot or 0}_'
                           f'{self.General.start_count:04d}_'
