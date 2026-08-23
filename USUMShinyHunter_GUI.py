@@ -401,6 +401,9 @@ class ShinyHunterUSUM(tk.Tk):
         self.data2GUI(currset)
 
     def GUI2data(self,i):
+        # Screen selection is a main-window setting, saved per Set
+        self.General.data[i].upper = int(self.upperVal.get())
+        self.General.data[i].lower = int(self.lowerVal.get())
         self.General.GUI2data(i)
         self.Battle.GUI2data(i)
         self.Recv.GUI2data(i)
@@ -408,6 +411,9 @@ class ShinyHunterUSUM(tk.Tk):
         self.Record.GUI2data(i)
 
     def data2GUI(self,i):
+        self.upperVal.set(1 if self.General.data[i].upper else 0)
+        self.lowerVal.set(1 if self.General.data[i].lower else 0)
+        self.screenSwitch()   # refresh the placeholders for unticked
         self.General.data2GUI(i)
         self.Battle.data2GUI(i)
         self.Recv.data2GUI(i)

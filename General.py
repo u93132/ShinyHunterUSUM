@@ -26,6 +26,9 @@ class Setting:
     capmode:   int = 0
     onlyshiny: int = 1
     vidfmt:    int = 0
+    # Which screens are ticked on the main window (off by default)
+    upper:     int = 0
+    lower:     int = 0
 
 def lock_slot(folder, num):
     # Try to lock settings slot `num`. Returns the open lock handle,
@@ -312,7 +315,7 @@ class General:
                     slot.capmode = int(temp[1])
                 case ('count' | 'currtab' | 'move' | 'aura' | 'recv'
                       | 'shotmode' | 'capmode' | 'onlyshiny'
-                      | 'vidfmt'):
+                      | 'vidfmt' | 'upper' | 'lower'):
                     setattr(slot, temp[0], int(temp[1]))
 
     def LoadSetting(self):
@@ -342,6 +345,8 @@ class General:
             f.write(f'capmode={d.capmode}\n')
             f.write(f'onlyshiny={d.onlyshiny}\n')
             f.write(f'vidfmt={d.vidfmt}\n')
+            f.write(f'upper={d.upper}\n')
+            f.write(f'lower={d.lower}\n')
 
     def WriteSetting(self, data):
         # Write the selected slot to its own file; the other slots
