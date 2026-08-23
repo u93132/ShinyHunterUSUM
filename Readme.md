@@ -13,6 +13,13 @@ stable than it was.
 - Discussion and walkthrough videos: https://gbatemp.net/threads/shiny-hunter-usum-afk.648378
 - Source code: https://github.com/u93132/ShinyHunterUSUM
 
+## Demo
+
+One hunt round captured by the Record tab's AFK mode, framed in the New 3DS XL
+console picture:
+
+![AFK recording demo](demo/demo_afk.gif)
+
 ## Features
 
 1. Shiny hunting during battles
