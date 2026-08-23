@@ -167,6 +167,3 @@ CLAUDE.md
 # Dev-mode screenshot folder
 pic/
 
-# Large demo source clips: only the compact README GIF is tracked
-demo/*.png
-demo/*.avi
