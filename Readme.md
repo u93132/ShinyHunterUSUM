@@ -18,7 +18,7 @@ stable than it was.
 One hunt round captured by the Record tab's AFK mode, framed in the New 3DS XL
 console picture (This is compressed to GIF for the purpose of demo and not to 
 flood your browser. You can have high quality recording using this app):
-[Original version of this recording] https://github.com/u93132/ShinyHunterUSUM/blob/main/demo/AFK_1_1725.png
+[Original version of this recording](https://github.com/u93132/ShinyHunterUSUM/blob/main/demo/AFK_1_1725.png)
 
 ![AFK recording demo](demo/demo_afk.gif)
 
