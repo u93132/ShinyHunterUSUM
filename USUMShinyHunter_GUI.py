@@ -145,6 +145,8 @@ class ShinyHunterUSUM(tk.Tk):
         # a starting one drops the reset footage in between
         self.General.RoundHook      = self.Record.RoundEnd
         self.General.RoundStartHook = self.Record.RoundStart
+        # Connect waits for the recorder's shiny video to be written
+        self.General.RecordBusyHook = self.Record.PendingVideo
 
         currset = (self.General.lockedslot or 1) - 1
         self.General.setting.set(self.General.settinglist[currset])

@@ -673,6 +673,15 @@ class Record:
         self.msgbox.MsgAppend(f'Saved {path.name} '
                               f'({len(buf)} frames, {dur:.1f} s)')
 
+    def PendingVideo(self):
+        # True while an AFK shiny video is still to be flushed (the
+        # hunter's stream just ended with frames buffered) or is
+        # being assembled, so the hunter's Connect can wait for it
+        if self.writing:
+            return True
+        return (self.runmode == 'afk' and self.recHunter
+                and len(self.recbuf) > 0)
+
     def RoundStart(self):
         # Hunter thread: the soft reset reached the save-data screen.
         # Whatever was buffered since the last round ended is reset

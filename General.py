@@ -65,6 +65,7 @@ class General:
         self.RecordHook = None     # set by the GUI once Record exists
         self.RoundHook  = None     # called when a hunt round finishes
         self.RoundStartHook = None # called when a hunt round begins
+        self.RecordBusyHook = None # True while a video is still saving
         self.start_count = 1
         # Load images
         self.bitmap = load_bitmaps(f'image0/{self.tabname}')
@@ -247,10 +248,21 @@ class General:
                     self.TabButton[j].config(state = 'disabled')
                     self.nb.tab(j+1, state='disabled')
             case -1:
-                self.ConnectButton.config(state = 'normal')
                 self.ResetButton.config(state = 'normal')
                 if self.RecordHook is not None:
                     self.RecordHook(False)
+                # Keep Connect disabled until the recorder's shiny
+                # video is on disk, so a click cannot start the next
+                # run before 'Saved' shows up
+                self.EnableConnectWhenSaved()
+
+    def EnableConnectWhenSaved(self):
+        # Re-enable Connect only once the recorder has no video left
+        # to flush or write; poll on the GUI thread until then
+        if self.RecordBusyHook is not None and self.RecordBusyHook():
+            self.ConnectButton.after(200, self.EnableConnectWhenSaved)
+            return
+        self.ConnectButton.config(state = 'normal')
 
     def RecordLock(self, on):
         # While the Record stream owns the port, only tab switching
