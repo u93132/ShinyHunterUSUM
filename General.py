@@ -31,6 +31,9 @@ class Setting:
     lower:     int = 0
     # Save a debug screenshot on each hunt error (off by default)
     debugshot: int = 0
+    # Undock popup: background form (0/1/2) and half-size flag
+    popform:   int = 0
+    pophalf:   int = 0
 
 def lock_slot(folder, num):
     # Try to lock settings slot `num`. Returns the open lock handle,
@@ -330,7 +333,8 @@ class General:
                     slot.capmode = int(temp[1])
                 case ('count' | 'currtab' | 'move' | 'aura' | 'recv'
                       | 'shotmode' | 'capmode' | 'onlyshiny'
-                      | 'vidfmt' | 'upper' | 'lower' | 'debugshot'):
+                      | 'vidfmt' | 'upper' | 'lower' | 'debugshot'
+                      | 'popform' | 'pophalf'):
                     setattr(slot, temp[0], int(temp[1]))
 
     def LoadSetting(self):
@@ -363,6 +367,8 @@ class General:
             f.write(f'upper={d.upper}\n')
             f.write(f'lower={d.lower}\n')
             f.write(f'debugshot={d.debugshot}\n')
+            f.write(f'popform={d.popform}\n')
+            f.write(f'pophalf={d.pophalf}\n')
 
     def WriteSetting(self, data):
         # Write the selected slot to its own file; the other slots

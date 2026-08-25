@@ -16,8 +16,9 @@ from Battle  import *
 from Recv    import *
 from Lotto   import *
 from Record  import *
+from ScreenPopup import ScreenPopup
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 
 # Define the application class
 class ShinyHunterUSUM(tk.Tk):
@@ -83,6 +84,20 @@ class ShinyHunterUSUM(tk.Tk):
         self.lowerbtn   = tk.Checkbutton(self.lowerframe, variable=self.lowerVal,
                                          command=self.screenSwitch)
         self.lowerbtn   .grid(row=1, column=0, padx=5, pady=0)
+        # Undock: pop the screens into a borderless window that
+        # follows the main window; the button toggles it open/closed
+        self.popup = None
+        self.undocked = False
+        self.pop_form  = 0      # popup background: 0 plain / 1 / 2
+        self.pop_scale = 1.0    # popup size: 1.0 full / 0.5 half
+        self.undockbtn = tk.Button(self.frame0, image=self.bitmap['undock'],
+                                   command=self.Undock)
+        # bottom-right of the Screen frame, inset 3px left and up
+        # from the corner (bordermode 'outside' measures from the
+        # frame's outer edges)
+        self.undockbtn .place(relx=1.0, rely=1.0, x=-3, y=-3, anchor='se',
+                              bordermode='outside')
+        self.bind('<Configure>', self.FollowPopup)
 
         ########################################################################
         ########################## GUI objects : Row 1 #########################
@@ -158,6 +173,7 @@ class ShinyHunterUSUM(tk.Tk):
 
     def on_closing(self):
         # Return control to physical buttons when closing application
+        self.ClosePopup()
         try:
             self.ir.return_control()
         except Exception:
@@ -168,6 +184,45 @@ class ShinyHunterUSUM(tk.Tk):
             os.kill(os.getpid(), signal.SIGTERM)
         else:
             self.destroy()
+
+    def Undock(self):
+        # Toggle the undocked screen window
+        if self.popup is None:
+            self.OpenPopup()
+        else:
+            self.ClosePopup()
+
+    def OpenPopup(self):
+        # The docked previews step aside; the ScreenPopup owns the
+        # display and reads pop_form / pop_scale straight off the app
+        self.undockbtn.config(relief = 'sunken')
+        self.undocked = True
+        self.upperlabel.config(image = self.bitmap['Upper'])
+        self.lowerlabel.config(image = self.bitmap['Lower'])
+        self.popup = ScreenPopup(self)
+
+    def ClosePopup(self):
+        if self.popup is not None:
+            self.popup.close()
+            self.popup = None
+        self.undocked = False
+        self.undockbtn.config(relief = 'raised')
+
+    def FollowPopup(self, event=None):
+        # The main window moved: keep the popup beside it. Ignore the
+        # Configure events bubbling up from child widgets
+        if self.popup is not None and (event is None or
+                                       event.widget is self):
+            self.popup.place()
+
+    def SelScreens(self):
+        # Ticked screens, low to high (0 lower, 1 upper)
+        sel = []
+        if int(self.lowerVal.get()) == 1:
+            sel.append(0)
+        if int(self.upperVal.get()) == 1:
+            sel.append(1)
+        return sel
 
     def screenSwitch(self):
         # Both screens may update at once; an unticked screen falls
@@ -237,7 +292,11 @@ class ShinyHunterUSUM(tk.Tk):
 
     def show_frame(self, s):
         # Update screen s (0 = lower, 1 = upper) when its checkbox is
-        # on; an unticked screen keeps its placeholder
+        # on; an unticked screen keeps its placeholder. While
+        # undocked the popup owns the display, so the docked previews
+        # stay on their placeholders
+        if self.undocked:
+            return
         val   = (self.lowerVal,   self.upperVal)[s]
         label = (self.lowerlabel, self.upperlabel)[s]
         size  = ((96, 72), (120, 72))[s]
@@ -403,9 +462,12 @@ class ShinyHunterUSUM(tk.Tk):
         self.data2GUI(currset)
 
     def GUI2data(self,i):
-        # Screen selection is a main-window setting, saved per Set
+        # Screen selection and undock popup options are main-window
+        # settings, saved per Set
         self.General.data[i].upper = int(self.upperVal.get())
         self.General.data[i].lower = int(self.lowerVal.get())
+        self.General.data[i].popform = self.pop_form
+        self.General.data[i].pophalf = 1 if self.pop_scale == 0.5 else 0
         self.General.GUI2data(i)
         self.Battle.GUI2data(i)
         self.Recv.GUI2data(i)
@@ -416,6 +478,12 @@ class ShinyHunterUSUM(tk.Tk):
         self.upperVal.set(1 if self.General.data[i].upper else 0)
         self.lowerVal.set(1 if self.General.data[i].lower else 0)
         self.screenSwitch()   # refresh the placeholders for unticked
+        # Restore the undock popup options; rebuild if it is open
+        d = self.General.data[i]
+        self.pop_form  = d.popform if d.popform in (0, 1, 2) else 0
+        self.pop_scale = 0.5 if d.pophalf else 1.0
+        if self.popup is not None:
+            self.popup.rebuild()
         self.General.data2GUI(i)
         self.Battle.data2GUI(i)
         self.Recv.data2GUI(i)
