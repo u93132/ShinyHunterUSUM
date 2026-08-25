@@ -153,12 +153,24 @@ Files go to the *Save to* folder: `Upper_1_0001.jpg`, `Combined_1_0001.jpg`, `N3
 
 The Record page's folder, shot form, capture mode, format and *Only shiny run* are saved per Set like every other setting.
 
+### Undock — a floating Screen window
+
+The ![](image0/undock.gif) button at the bottom-right of the **Screen** box pops the live screens out into a separate window that follows the main window. It is meant for streaming: give your capture software a clean, fixed-size view of the game instead of the whole app.
+
+- A toolbar across the top: ![](image0/Record/image.gif) plain / ![](image0/Record/redconsole.gif) red console / ![](image0/Record/blueconsole.gif) blue console background, then ![](image0/oneicon.gif) full and ![](image0/halficon.gif) half size.
+- The console backgrounds frame the screens inside an N3DS XL picture; the **Screen** checkboxes choose which screens show (tick one for one screen, both for both).
+- The window is titled **Screen** so Discord/OBS *window* capture can find it. Its title-bar controls are disabled — it can only be opened and closed with the undock button, and it keeps a fixed size and follows the main window so it never drifts off your scene.
+- The background and size choices are saved per Set.
+
+While the window is open the docked previews step aside; press the undock button again to close it and bring them back.
+
 ## Troubleshooting
 
 - **No stream from 3DS** — the network profile on Windows must be *Private*; check the PC IP and port; reboot the 3DS if you changed the port (see Note 3).
 - **Error NNN in the log** — the hundreds digit is the stage: `101` the target's name never appeared; `2xx` walking the dialogue; `3xx` starter selection; `5xx` summary page; `6xx` Boost cutscene check. A `Debug_*` screenshot of that moment is saved next to the exe.
 - **Red window, "N3DS crush?" / "3DS connection lost"** — the console stopped answering; the app has unlocked itself, check the 3DS and reconnect.
 - **"Setting #N locked by another instance"** — that Set belongs to a running instance; pick another one.
+- **Discord/OBS cannot find the undock window** — use *window* capture and pick the window named **Screen**; if it still will not list, capture the whole monitor instead.
 
 ## Running from source / building the exe
 
