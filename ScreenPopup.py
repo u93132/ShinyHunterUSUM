@@ -1,3 +1,4 @@
+import re
 import tkinter as tk
 from PIL import ImageTk
 from Record import N3DS_BOX
@@ -49,6 +50,13 @@ class ScreenPopup:
         # taskbar / Alt+F4 closes so it can never be orphaned while
         # the app still thinks it is open
         self.win.protocol('WM_DELETE_WINDOW', self.deny_close)
+        # Position tracked in geometry space (self.x, self.y): start on
+        # the main window's right, then shift by the main window's own
+        # moves so the relative distance is kept - even after a drag
+        self.app.update_idletasks()
+        self.x = self.app.winfo_x() + self.app.winfo_width() + 8
+        self.y = self.app.winfo_y()
+        self.win.bind('<Configure>', self.on_configure)
         # Toolbar on top: background picker on the left, size group
         # right after it; buttons within each group are flush
         self.toolbar = tk.Frame(self.win)
@@ -142,7 +150,7 @@ class ScreenPopup:
         self.win.update_idletasks()
         self.w = self.win.winfo_reqwidth()
         self.h = self.win.winfo_reqheight()
-        self.place()
+        self.apply()
 
     def tick(self):
         # Refresh only the screen layer (~10/s); the console stays put.
@@ -170,14 +178,36 @@ class ScreenPopup:
                 self.canvas.itemconfigure(item, state='hidden')
         self.app.after(100, self.tick)
 
-    def place(self):
-        # Sit the popup right of the main window. The geometry carries
-        # an explicit WxH so a frame recalc (e.g. a taskbar Move) can
-        # never resize the window - it stays the size the content set
-        self.app.update_idletasks()
-        x = self.app.winfo_x() + self.app.winfo_width() + 8
-        y = self.app.winfo_y()
-        self.win.geometry(f'{self.w}x{self.h}+{x}+{y}')
+    def apply(self):
+        # Pin the window to (self.x, self.y) at its measured size. An
+        # explicit WxH stops a frame recalc (taskbar Move) resizing it
+        self.win.geometry(f'{self.w}x{self.h}+{self.x}+{self.y}')
+
+    def _geo(self):
+        # Current window position parsed from its geometry string -
+        # the same space apply() writes in, so reads and writes match
+        m = re.search(r'([+-]\d+)([+-]\d+)$', self.win.geometry())
+        return (int(m.group(1)), int(m.group(2))) if m else (self.x,
+                                                             self.y)
+
+    def on_configure(self, event=None):
+        # The window moved: if the WM (a user drag) put it somewhere
+        # other than where apply() last set it, adopt that position so
+        # the popup keeps its new relative distance. Compared in
+        # geometry space, so our own placements match and never drift
+        if not self.alive or (event is not None and
+                              event.widget is not self.win):
+            return
+        gx, gy = self._geo()
+        if (gx, gy) != (self.x, self.y):
+            self.x, self.y = gx, gy
+
+    def follow(self, dx, dy):
+        # The main window moved by (dx, dy); shift the popup the same,
+        # keeping its current relative distance wherever it now sits
+        self.x += dx
+        self.y += dy
+        self.apply()
 
     def deny_close(self):
         # Ignore window-manager close requests (taskbar, Alt+F4);

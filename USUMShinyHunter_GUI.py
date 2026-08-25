@@ -88,6 +88,7 @@ class ShinyHunterUSUM(tk.Tk):
         # follows the main window; the button toggles it open/closed
         self.popup = None
         self.undocked = False
+        self._lastpos  = None   # main-window position, for move deltas
         self.pop_form  = 0      # popup background: 0 plain / 1 / 2
         self.pop_scale = 1.0    # popup size: 1.0 full / 0.5 half
         self.undockbtn = tk.Button(self.frame0, image=self.bitmap['undock'],
@@ -209,11 +210,20 @@ class ShinyHunterUSUM(tk.Tk):
         self.undockbtn.config(relief = 'raised')
 
     def FollowPopup(self, event=None):
-        # The main window moved: keep the popup beside it. Ignore the
-        # Configure events bubbling up from child widgets
-        if self.popup is not None and (event is None or
-                                       event.widget is self):
-            self.popup.place()
+        # The main window moved: shift the popup by the same delta so
+        # it keeps its relative distance, wherever the user put it.
+        # Ignore Configure events bubbling up from child widgets
+        if event is not None and event.widget is not self:
+            return
+        pos = (self.winfo_x(), self.winfo_y())
+        if self._lastpos is None:
+            self._lastpos = pos
+            return
+        dx = pos[0] - self._lastpos[0]
+        dy = pos[1] - self._lastpos[1]
+        self._lastpos = pos
+        if self.popup is not None and (dx or dy):
+            self.popup.follow(dx, dy)
 
     def SelScreens(self):
         # Ticked screens, low to high (0 lower, 1 upper)
