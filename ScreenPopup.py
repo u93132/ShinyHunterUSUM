@@ -35,6 +35,7 @@ class ScreenPopup:
     # view and writes option changes back to the app.
     def __init__(self, app):
         self.app = app
+        self.alive = True             # drives the refresh loop
         self.photo = [None, None]     # PhotoImage refs, per screen
         self.item  = [None, None]     # canvas item ids, per screen
         self.id    = [None, None]     # last drawn frame id, per screen
@@ -145,8 +146,9 @@ class ScreenPopup:
 
     def tick(self):
         # Refresh only the screen layer (~10/s); the console stays put.
-        # Stop once the app has closed or replaced this popup
-        if self.app.popup is not self:
+        # Guard on our own flag, not app.popup, because the very first
+        # tick runs from __init__ before app.popup has been assigned
+        if not self.alive:
             return
         sel = self.app.SelScreens()
         s = self.app.pop_scale
@@ -183,4 +185,5 @@ class ScreenPopup:
         pass
 
     def close(self):
+        self.alive = False       # stop the refresh loop first
         self.win.destroy()
