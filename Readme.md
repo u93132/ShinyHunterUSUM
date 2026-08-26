@@ -188,6 +188,7 @@ py -3 USUMShinyHunter_GUI.py
 - v0.4.0: starter Pokémon added — save in front of the grass where the event triggers.
 - v1.0.0: recording functions, Pikachu in a hat, Sun / Moon officially supported.
 - v1.1.0: Record page capture modes (burst, 60 s video, one video per AFK round with *Only shiny run*), AVI / GIF / APNG output, red and blue console shot forms, per-Set Record settings, Set-numbered filenames for multi-instance, and the hunt lingers after a shiny so the video keeps the animation.
+- v1.2.0: Floating Screen window & S/M starters
 
 **2026 edit.** Most of the potential bugs are cleaned up and template matching is faster. Features that depended on low latency were removed. Thanks to AI, programming is much faster now — whether that is a good sign or not.
 
