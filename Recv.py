@@ -130,7 +130,7 @@ class Recv(TabBase):
             for btn in self.recvbtn[6:]:
                 btn.config(state = 'normal')
 
-    def findrecv(self, poke):
+    def findrecv(self, poke, gametype):
         # Input
         # 0 is Poipole
         # 1 is Type: Null (Poni)
@@ -150,7 +150,8 @@ class Recv(TabBase):
         #     221/222  Aether  - 'ty' / 'be,be2'
         #     261      Pikachu - 'no' (end of dialogue)
         #   301/302  starter select: 'ro' menu / 'yo' confirm
-        #   311/312  starter dialogs: 'bu' / 'bg'
+        #   311/312  starter dialogs: 'bu' / 'bg' (US/UM)
+        #   313      starter dialogs: 'no' end of dialogue (S/M)
         #   501-503  summary check: menu / 'Lv' / party name
         #   601-603  Boost: 'ro' / 'yo' / in-scene name
         boost = poke >= 100
@@ -166,34 +167,39 @@ class Recv(TabBase):
                 self.cpad(0.0, 0.0)
 
         # Talk until you find the pokemon's name on the top screen
-        if not self.wait_for((105,192,165,204), self.lab[poke], 12, 60-18,
+        if not self.wait_for((105,192,165,204), self.lab[poke], 12, 60-18, 1,
                              button=HIDButtons.A, n=1000):
             return 101, self.image[1]
 
         if boost:
             if 2 < poke < 6:
-                err = self.select_starter(poke, 601)
+                err = self.select_starter(poke, gametype, 601)
                 if err is not None:
                     return err, self.image[1]
             return self.check_inscene(poke)
 
-        err = self.nav_dialogue(poke)
+        err = self.nav_dialogue(poke, gametype)
         if err is not None:
             return err, self.image[1]
         return self.check_summary(poke)
 
-    def select_starter(self, poke, err):
+    def select_starter(self, poke, gametype, err):
         # ro menu -> move down to the chosen starter -> confirm (yo)
         # Returns `err` / `err+1` on timeout, None when done
-        if not self.wait_for((297,129,321,141), self.ro, 12,
-                             button=HIDButtons.B):
-            return err
+        if gametype == 1:
+            if not self.wait_for((297,129,321,141), self.ro, 12,
+                                 button=HIDButtons.B):
+                return err
+        elif gametype == 2:
+            if not self.wait_for((327,174,351,186), self.ro, 12,
+                                 button=HIDButtons.B, n=500):
+                return err
         # Switch between the starters
         for i in range(poke-3):
             self.click(HIDButtons.DPADDOWN)
             time.sleep(0.5)
         # Press A until the confirm dialog (yo) shows up
-        if not self.wait_for((48,192,70,204), self.yo, 12,
+        if not self.wait_for((48,192,70,204), self.yo, 12, 0, 1,
                              button=HIDButtons.A):
             return err + 1
         return None
@@ -201,8 +207,8 @@ class Recv(TabBase):
     def check_inscene(self, poke):
         # Boost mode: tap through the dialogue until the name shows
         # up, then read the calibrated color patch in the scene
-        if not self.wait_for((170,192,210,204), self.nam[poke], 12, 40-18,
-                             button=(240,20), n=100, screen=1, ts=0.1):
+        if not self.wait_for((180,192,198,204), self.nam[poke], 12, 0, 1,
+                             button=(240,20), n=1000, screen=1, ts=0.1):
             return 603, self.image[1]
         time.sleep(0.2)
         img0 = self.image[1]
@@ -214,7 +220,7 @@ class Recv(TabBase):
         d       = diffnorm(self.nomb[poke], self.tarb[poke])
         return res_tar / d, img0
 
-    def nav_dialogue(self, poke):
+    def nav_dialogue(self, poke, gametype):
         # Walk the per-target dialogue after the name showed up
         # Returns an error code, None once the pokemon is received
         if poke == 0:
@@ -251,19 +257,24 @@ class Recv(TabBase):
             time.sleep(2.0)
 
         else:
-            err = self.select_starter(poke, 301)
+            err = self.select_starter(poke, gametype, 301)
             if err is not None:
                 return err
 
-            # Press B until the next dialog (bu) shows up
-            if not self.wait_for((271,149,290,161), self.bu, 12,
-                                 button=HIDButtons.B):
-                return 311
+            if gametype == 1:
+                # Press B until the next dialog (bu) shows up
+                if not self.wait_for((271,149,290,161), self.bu, 12,
+                                     button=HIDButtons.B):
+                    return 311
 
-            # Press A until the handover screen (bg) shows up
-            if not self.wait_for((187,54,227,121), self.bg, 67,
-                                 button=HIDButtons.A):
-                return 312
+                # Press A until the handover screen (bg) shows up
+                if not self.wait_for((187,54,227,121), self.bg, 67,
+                                     button=HIDButtons.A):
+                    return 312
+            elif gametype == 2:
+                if not self.wait_for((55,193,73,205), self.no, 12,
+                                     button=HIDButtons.B,n=500):
+                    return 313
         return None
 
     def check_summary(self, poke):
@@ -314,7 +325,7 @@ class Recv(TabBase):
 
     def hunt(self, gametype=0):
         # Check Pokemon game version
-        if gametype == 2 and int(self.recvvar.get()) != 2:
+        if gametype == 2 and not (1 < int(self.recvvar.get()) < 6):
             self.General.ConnectState(0)
             self.General.ConnectState(-1)
             self.msgbox.msgbox.config(bg = 'red')
@@ -325,7 +336,7 @@ class Recv(TabBase):
             # Trigger the event; Boost mode is encoded as +100
             base  = int(self.recvvar.get())
             boost = int(self.boostvar.get())
-            res, img0 = self.findrecv(base + 100*boost)
+            res, img0 = self.findrecv(base + 100*boost, gametype)
             self.ir.clear_everything()
             self.ir.circle_pad_neutral()
             # Get current time
