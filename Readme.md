@@ -24,7 +24,7 @@ flood your browser. You can have high quality recording using this app):
 
 Also a real-time recording of an early version of ShinyHunterUSUM working with
 the N3DS — a shiny Lugia:
-[Watch the real-time recording](demo/Shiny_Lugia_realtime.mp4)
+[Watch the real-time recording](https://raw.githubusercontent.com/u93132/ShinyHunterUSUM/main/demo/Shiny_Lugia_realtime.mp4)
 
 ## Features
 
