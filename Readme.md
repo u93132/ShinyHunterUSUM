@@ -22,9 +22,9 @@ flood your browser. You can have high quality recording using this app):
 
 ![AFK recording demo](demo/demo_afk.gif)
 
-Also a real-time recording of an early version ShinyHunterUSUM works with N3DS:
-
-![Real-time recording](demo/Ultra Sun_Ultra Moon Shiny Hunter - (3) Shiny Lugia!.mp4)
+Also a real-time recording of an early version of ShinyHunterUSUM working with
+the N3DS — a shiny Lugia:
+[Watch the real-time recording](demo/Shiny_Lugia_realtime.mp4)
 
 ## Features
 
