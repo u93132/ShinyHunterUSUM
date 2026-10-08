@@ -21,10 +21,12 @@ class Battle(TabBase):
 
         super().__init__(nb, General, msgbox, image)
         # Battle parameters
+        self.wp   = img2BW(Image.open(self.picpath/'wp.bmp'))
         self.ap   = img2BW(Image.open(self.picpath/'ap.bmp'))
         self.go   = img2BW(Image.open(self.picpath/'go.bmp'))
         self.chat = 2700           # 2700ms for normal pokemon
 
+        self.cropbox_wp = [(54,203,76,215), (52,196,74,208)]
         self.cropbox_ap = [(35,205,235,218),(35,198,235,211)]
         self.cropbox_go = [(13,203,33,215), (11,196,31,208)]
 
@@ -118,6 +120,10 @@ class Battle(TabBase):
             img0 = self.image[1]
             img1 = img0.crop(self.cropbox_ap[gametype-1])
             res = matchtemplate(img2BW(img1), self.ap, 13, 200-24)
+
+            if matchtemplate(img2BW(img0.crop(self.cropbox_wp[gametype-1])),
+                             self.wp, 13, 0)< self.threshold:
+                self.chat = 3000
             #print(res)
             if res < self.threshold:
                 t_app = time.time()

@@ -167,3 +167,8 @@ CLAUDE.md
 # Dev-mode screenshot folder
 pic/
 
+# Scratch folders the tests create next to themselves
+tests/*_settings/
+tests/record_shots/
+tests/avi_test/
+
